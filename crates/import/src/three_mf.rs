@@ -86,12 +86,16 @@ fn model_parts(bytes: &[u8]) -> Result<Vec<Vec<u8>>, ImportError> {
                 .read_event_into(&mut buf)
                 .map_err(|e| err(e.to_string()))?
             {
-                Event::Start(e) | Event::Empty(e) if e.local_name().as_ref() == b"Relationship" => {
+                Event::Start(e) | Event::Empty(e) if e.local_name().as_ref() == "Relationship" => {
                     let attr = |k: &str| {
                         e.attributes()
                             .flatten()
-                            .find(|a| a.key.local_name().as_ref() == k.as_bytes())
-                            .and_then(|a| a.unescape_value().ok().map(|v| v.to_string()))
+                            .find(|a| a.key.local_name().as_ref() == k)
+                            .and_then(|a| {
+                                a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                                    .ok()
+                                    .map(|v| v.to_string())
+                            })
                     };
                     if attr("Type").is_some_and(|t| t.ends_with("/3dmodel"))
                         && let Some(t) = attr("Target")
@@ -149,14 +153,18 @@ fn base_materials(parts: &[Vec<u8>]) -> Result<BaseMaterials, ImportError> {
                     let attr = |k: &str| {
                         e.attributes()
                             .flatten()
-                            .find(|a| a.key.local_name().as_ref() == k.as_bytes())
-                            .and_then(|a| a.unescape_value().ok().map(|v| v.to_string()))
+                            .find(|a| a.key.local_name().as_ref() == k)
+                            .and_then(|a| {
+                                a.normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                                    .ok()
+                                    .map(|v| v.to_string())
+                            })
                     };
                     match e.local_name().as_ref() {
-                        b"basematerials" => {
+                        "basematerials" => {
                             group = attr("id").and_then(|v| v.parse().ok()).map(|g| (g, 0))
                         }
-                        b"base" => {
+                        "base" => {
                             if let Some((g, k)) = group.as_mut() {
                                 let name = attr("name").unwrap_or_default();
                                 let color = attr("displaycolor")
@@ -169,7 +177,7 @@ fn base_materials(parts: &[Vec<u8>]) -> Result<BaseMaterials, ImportError> {
                         _ => {}
                     }
                 }
-                Event::End(e) if e.local_name().as_ref() == b"basematerials" => group = None,
+                Event::End(e) if e.local_name().as_ref() == "basematerials" => group = None,
                 Event::Eof => break,
                 _ => {}
             }

@@ -1,6 +1,6 @@
 # Code signing policy
 
-Sawhorse's installers are not code-signed today: Windows and macOS warn before the first launch, and the release notes walk through it ([alpha.4](releases/v0.1.0-alpha.4.md#unsigned-installers)). This page says how signing will work and who decides what gets signed.
+Sawhorse's installers are not code-signed today: Windows and macOS warn before the first launch, and the release notes walk through it ([alpha.4](releases/v0.1.0-alpha.4.md#unsigned-installers)). macOS builds made without an Apple certificate are ad-hoc signed (`signingIdentity: "-"` in `src-tauri/tauri.conf.json`), which is meant to stop Apple Silicon calling the app damaged ([#27](https://github.com/sawhorse3d/sawhorse/issues/27)). An ad-hoc signature names no developer, so macOS still warns. This page says how signing will work and who decides what gets signed.
 
 ## Who signs, and where
 

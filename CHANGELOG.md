@@ -4,6 +4,19 @@ All notable changes to Sawhorse are recorded here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed (work is never lost, macOS fork, 2026-11-08)
+
+- **A model that lost a solid can be saved** ([#21](https://github.com/sawhorse3d/sawhorse/issues/21), [#35](https://github.com/sawhorse3d/sawhorse/issues/35)). Draw two boards, delete the first, and Save refused with "the file did not read back as written: the model differs", as did anything that removed a solid (replacing a cabinet, exploding, collapsing a solid back to its sketch). Nothing was wrong with the file: the check compared a hash that includes ids, and reading a file hands out fresh ones. The check now allows for fresh ids and nothing else (`read_back_difference`, `crates/kernel/src/hash.rs`): the file must match the model rebuilt from its own snapshot, and every solid and sketch must match the live model, so a file that really differs is still refused.
+- **The desktop app asks before throwing away unsaved work** ([#32](https://github.com/sawhorse3d/sawhorse/issues/32)). Open and New replaced a changed model at once: the dialog plugin makes the desktop's `window.confirm` a Promise, which reads as yes. The question goes through the plugin and is awaited.
+- **Closing or quitting asks first.** The window's close and, on macOS, Quit (which otherwise ends the app past the close request) ask when there are unsaved changes.
+- **Edits made during a save stay unsaved.** The model was marked saved as of when the Save dialog closed, not as of what the file holds.
+- **A save respects the file it replaces.** Its permissions carry over, a symlink is written through instead of replaced, a backup that cannot be written no longer stops the save, the folder is flushed after the rename, and a link planted at the temporary name is not followed.
+- **A large save no longer freezes the window.** Saving and Keychain work run off the main thread.
+- **macOS builds are ad-hoc signed** ([#27](https://github.com/sawhorse3d/sawhorse/issues/27)), the usual cure for "Sawhorse.app is damaged" on Apple Silicon.
+- **Parsers updated:** `zip` 9 and `quick-xml` 0.42 (with `threemf` 0.8.1), which read untrusted files and carried published advisories.
+- The checkout link shows when the system browser could not be opened, and a plugin's uninstall path check can no longer be fooled by a sibling folder.
+- Tests: `crates/wasm-api/tests/save_roundtrip.rs` saves after every step of every golden log; the sequence fuzzer now requires every state it reaches to rebuild from its snapshot; `e2e/files.spec.ts` and `e2e/plugins-samples.spec.ts` cover the flows above on the real kernel.
+
 ### Fixed (lane 27, 2026-11-01)
 
 - **A SketchUp import's curve note says what the model holds** ([#17](https://github.com/sawhorse3d/sawhorse/issues/17)). openskp's `gondola_v20.skp` said "16 curves came in as curves (8 arcs, 8 polylines)" while the model held 24 polylines and no arc: the note counted a component's curves once, for its definition, in the frame its items are built in, and its arcs sit in components placed with an uneven scale, which turns each copy's arcs into polylines only where it lands. The note now counts every placed copy as it lands, as the curves view does (the gondola: "24 curves came in as curves" and "16 circles or arcs in groups or components scaled unevenly came in as polylines"), and an uneven scale on a component's placement is said with a group's: "N circles or arcs in groups or components scaled unevenly came in as polylines". Five of the 35 real files tried said a different number than their curves view (Corynth's cupboard said 30 curves, 6 circles and 24 arcs, for a model holding 12 circles and 48 arcs); none does now.

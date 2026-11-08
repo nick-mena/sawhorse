@@ -738,8 +738,10 @@ impl DocCore {
         // the person's last good copy.
         let back = sawhorse_shz::read(&bytes)
             .map_err(|e| format!("the file did not read back as written: {e}"))?;
-        if back.document.hash() != self.doc.model().hash() {
-            return Err("the file did not read back as written: the model differs".into());
+        if let Some(why) =
+            sawhorse_kernel::hash::read_back_difference(self.doc.model(), back.document.model())
+        {
+            return Err(format!("the file did not read back as written: {why}"));
         }
         Ok(bytes)
     }

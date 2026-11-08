@@ -111,7 +111,8 @@ fn a_3mf_zip_bomb_is_refused_without_inflating() {
     let e = read(None, &file, &opts("lie.3mf")).unwrap_err();
     assert!(t.elapsed().as_millis() < 100, "{:?}", t.elapsed());
     assert!(
-        e.to_string().contains("not the 1000 its header says"),
+        e.to_string()
+            .contains("larger than its declared uncompressed size"),
         "{e}"
     );
 }

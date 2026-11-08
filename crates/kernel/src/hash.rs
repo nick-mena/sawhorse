@@ -526,6 +526,59 @@ pub fn model_hash(m: &Model) -> u64 {
     h.finish()
 }
 
+/// Why `back`, `model` read back from a file just saved, does not hold the same model; `None`
+/// when it does.
+///
+/// [`model_hash`] writes public ids, which depend on a model's history: reading a file hands
+/// out fresh ones, so a model that ever lost a solid, guide or node hashes differently after
+/// a read with nothing wrong. When the plain hashes differ, the file must match this model
+/// rebuilt from its own snapshot (same fresh ids, so every field and reference is compared),
+/// and each solid and sketch must match the live model, which no id or snapshot can excuse.
+pub fn read_back_difference(model: &Model, back: &Model) -> Option<String> {
+    if model.hash() == back.hash() {
+        return None;
+    }
+    let renumbered = match Model::from_snapshot(&model.snapshot()) {
+        Ok(m) => m,
+        Err(e) => {
+            return Some(format!(
+                "the model cannot be rebuilt from its snapshot: {e}"
+            ));
+        }
+    };
+    if renumbered.hash() != back.hash() {
+        return Some("the model differs".into());
+    }
+    let (a, b) = (model.objects(), back.objects());
+    if a.len() != b.len()
+        || a.iter()
+            .zip(&b)
+            .any(|(x, y)| object_hash(x.1) != object_hash(y.1))
+    {
+        return Some("a solid differs".into());
+    }
+    let (a, b) = (model.sketches(), back.sketches());
+    if a.len() != b.len()
+        || a.iter()
+            .zip(&b)
+            .any(|(x, y)| sketch_hash(x.1) != sketch_hash(y.1))
+    {
+        return Some("a sketch differs".into());
+    }
+    let counts = |m: &Model| {
+        [
+            m.meshes().len(),
+            m.guides().len(),
+            m.dimensions().len(),
+            m.nodes().len(),
+            m.definitions().len(),
+            m.scenes().len(),
+            m.sheets().len(),
+        ]
+    };
+    (counts(model) != counts(back)).then(|| "the model's contents differ".into())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

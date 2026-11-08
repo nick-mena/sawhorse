@@ -378,8 +378,11 @@ fn attrs(e: &BytesStart) -> BTreeMap<String, String> {
     e.attributes()
         .flatten()
         .filter_map(|a| {
-            let k = String::from_utf8_lossy(a.key.local_name().as_ref()).to_string();
-            let v = a.unescape_value().ok()?.to_string();
+            let k = a.key.local_name().as_ref().to_string();
+            let v = a
+                .normalized_value(quick_xml::XmlVersion::Implicit1_0)
+                .ok()?
+                .to_string();
             Some((k, v))
         })
         .collect()
@@ -424,7 +427,7 @@ pub fn read(bytes: &[u8], _opts: &ImportOptions) -> Result<Parsed, ImportError> 
                 continue;
             }
         };
-        let name = String::from_utf8_lossy(e.local_name().as_ref()).to_string();
+        let name = e.local_name().as_ref().to_string();
         let a = attrs(&e);
         let (parent, hidden_parent) = *stack.last().unwrap_or(&(DAffine2::IDENTITY, false));
         let local = a

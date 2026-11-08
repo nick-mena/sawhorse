@@ -101,7 +101,11 @@ impl<'a> Archive<'a> {
                 .zip
                 .by_index_raw(i)
                 .map_err(|e| ArchiveError::Damaged(e.to_string()))?;
-            out.push((f.name().to_string(), f.size()));
+            let name = f
+                .name()
+                .map_err(|e| ArchiveError::Damaged(e.to_string()))?
+                .to_string();
+            out.push((name, f.size()));
         }
         Ok(out)
     }

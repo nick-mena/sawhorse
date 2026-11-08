@@ -140,3 +140,8 @@ Lane 1 (foundations, 2026-10-11): nothing from either project was opened or read
 - **openskp's GitHub repository:** read its `CHANGELOG.md` at tag `v1.4.0` (the 1.4.0 entries: the curve record, the group flag, classic scenes, the instance scale term, the legacy fixes), as this lane's brief allows; no source file of the repository was opened. openskp issue #284 and pull request #440 are cited from our own issue #15's evidence, not read for this lane.
 - **Read:** nothing from hew3d/hew, hew3d/openskp or IngeTrazo; no SketchUp source. SketchUp behaviour (a polygon, a welded curve, an arc cut by another edge, a parallel scene's height) was described as a user sees it.
 - **Files:** the maintainer's private `.skp` files were read in place by the import path (`src/io/skp-sweep.test.ts`), never copied into the repository or the corpus; only their names and counts are written in `docs/skp-compat.md`.
+
+### 2026-11-08 — macOS fork, review and stability pass: what was read
+- **Who:** Claude (Opus 5.5), the baseline review and the save and stability fixes.
+- **Read:** no source, tests or fixtures from hew3d/hew or hew3d/openskp.
+- **Other dependencies read for their APIs** (permissive licences, not copyleft): the `quick-xml` 0.42 sources in the cargo registry (`events/attributes.rs`, for the update), and the `tauri` 2.12 and `muda` 0.20 sources (the window permissions, and how the predefined Quit item behaves). Nothing was copied.

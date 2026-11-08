@@ -61,6 +61,23 @@ test("the samples are listed, disabled, with their permissions", async ({ page }
   await expect(row(page, CABINET)).toHaveAttribute("data-status", "disabled");
 });
 
+test("a blank model saved, then a default cabinet, saves again (upstream #34)", async ({ page }) => {
+  await start(page);
+  await enable(page, CABINET, "Cabinet generator", ["model.read", "model.write", "ui", "storage"]);
+  const save = async () => {
+    const [d] = await Promise.all([page.waitForEvent("download"), page.keyboard.press("Control+s")]);
+    expect(d.suggestedFilename()).toBe("Untitled.shz");
+  };
+  await save();
+  await page.locator(`[data-panel="${CABINET}/cabinet"] [data-action="generate"]`).click();
+  await expect(page.locator("#hint")).toContainText("Made a cabinet");
+  await save();
+  // And after replacing it, which removes the first cabinet's solids.
+  await page.locator(`[data-panel="${CABINET}/cabinet"] [data-action="generate"]`).click();
+  await expect(page.locator("#hint")).toContainText("Updated the cabinet");
+  await save();
+});
+
 test("cabinet generator: a 30 x 72 x 12 in cabinet with 3 shelves; the Outliner names the parts and the Cut list lists them", async ({ page }) => {
   await start(page);
   await enable(page, CABINET, "Cabinet generator", ["model.read", "model.write", "ui", "storage"]);

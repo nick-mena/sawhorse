@@ -146,6 +146,90 @@ test("save as .shz, start a new model, open the file again", async ({ page }) =>
   await expect(page.locator(".hud")).toContainText("undo 0");
 });
 
+test("over unsaved changes, Open and New wait for the answer, even the desktop's asynchronous one", async ({ page }) => {
+  // The desktop's dialog plugin makes window.confirm return a Promise. The same stand-in
+  // here: it answers after a moment, No at first.
+  await page.addInitScript(() => {
+    const w = window as unknown as { confirm: (m: string) => unknown; __asked: string[]; __answer: boolean };
+    w.__asked = [];
+    w.__answer = false;
+    w.confirm = (m: string) => {
+      w.__asked.push(m);
+      return new Promise((r) => setTimeout(() => r(w.__answer), 150));
+    };
+  });
+  const asked = () => page.evaluate(() => (window as unknown as { __asked: string[] }).__asked);
+  const vp = await ready(page);
+  await pick(page, "parts.stl", stlBoxes([{ at: [0, 0, 0], size: [40, 40, 40] }]));
+  await expect(vp).toHaveAttribute("data-objects", "1");
+  const saved = await download(page, () => page.keyboard.press("Control+s"));
+  await expect(page).toHaveTitle("Untitled - Sawhorse");
+  await pick(page, "more.stl", stlBoxes([{ at: [100, 0, 0], size: [20, 30, 10] }]));
+  await expect(vp).toHaveAttribute("data-objects", "2");
+  await expect(page).toHaveTitle("• Untitled - Sawhorse");
+
+  await pick(page, "parts.shz", saved.bytes);
+  await expect.poll(asked).toEqual(["Discard the unsaved changes to this model?"]);
+  await page.waitForTimeout(500);
+  await expect(vp).toHaveAttribute("data-objects", "2");
+
+  await menu(page, "File", "New");
+  await expect.poll(async () => (await asked()).length).toBe(2);
+  await page.waitForTimeout(500);
+  await expect(vp).toHaveAttribute("data-objects", "2");
+
+  await page.evaluate(() => ((window as unknown as { __answer: boolean }).__answer = true));
+  await pick(page, "parts.shz", saved.bytes);
+  await expect(vp).toHaveAttribute("data-objects", "1");
+  await expect(page).toHaveTitle("parts - Sawhorse");
+});
+
+test("a model that lost a solid still saves and opens (upstream #21, #35)", async ({ page }) => {
+  const vp = await ready(page);
+  await pick(page, "one.stl", stlBoxes([{ at: [0, 0, 0], size: [40, 40, 40] }]));
+  await expect(vp).toHaveAttribute("data-objects", "1");
+  await page.keyboard.press("Control+a");
+  await page.keyboard.press("Delete");
+  await expect(vp).toHaveAttribute("data-objects", "0");
+  await pick(page, "two.stl", stlBoxes([{ at: [100, 0, 0], size: [20, 30, 10] }]));
+  await expect(vp).toHaveAttribute("data-objects", "1");
+  const saved = await download(page, () => page.keyboard.press("Control+s"));
+  await expect(page).toHaveTitle("Untitled - Sawhorse");
+  await menu(page, "File", "New");
+  await expect(vp).toHaveAttribute("data-objects", "0");
+  await pick(page, "back.shz", saved.bytes);
+  await expect(vp).toHaveAttribute("data-objects", "1");
+  await expect(page).toHaveTitle("back - Sawhorse");
+});
+
+test("an edit made while a save is under way stays unsaved", async ({ page }) => {
+  // A Save dialog the test holds open: the person keeps working behind it.
+  await page.addInitScript(() => {
+    const w = window as unknown as Record<string, unknown>;
+    let release = () => {};
+    w.__release = () => release();
+    const held = new Promise<void>((r) => (release = r));
+    w.showOpenFilePicker = () => Promise.reject(new DOMException("no", "AbortError"));
+    w.showSaveFilePicker = async () => {
+      w.__picking = true;
+      await held;
+      return { name: "held.shz", getFile: async () => new File([], "held.shz"), createWritable: async () => ({ write: async () => undefined, close: async () => undefined }) };
+    };
+  });
+  await page.goto("/");
+  const vp = page.locator("main.vp");
+  await expect(vp).toHaveAttribute("data-kernel", "ready", { timeout: 15_000 });
+  await pick(page, "one.stl", stlBoxes([{ at: [0, 0, 0], size: [40, 40, 40] }]));
+  await expect(vp).toHaveAttribute("data-objects", "1");
+  await page.keyboard.press("Control+s");
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __picking?: boolean }).__picking === true)).toBe(true);
+  await pick(page, "two.stl", stlBoxes([{ at: [100, 0, 0], size: [20, 30, 10] }]));
+  await expect(vp).toHaveAttribute("data-objects", "2");
+  await page.evaluate(() => (window as unknown as { __release: () => void }).__release());
+  await expect(page.locator("footer, .status").getByText("Saved held.shz").first()).toBeVisible();
+  await expect(page).toHaveTitle("• held - Sawhorse");
+});
+
 test("drag and drop: an SVG becomes sketch regions on the ground", async ({ page }) => {
   const vp = await ready(page);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="100mm" viewBox="0 0 100 100"><rect x="10" y="10" width="50" height="30"/><circle cx="80" cy="70" r="10"/></svg>`;

@@ -132,8 +132,10 @@ function desktop(): PluginPlatform {
       const { join } = await import("@tauri-apps/api/path");
       const root = await pluginsRoot();
       const dir = location ?? (await join(root, id));
-      // Only ever a folder inside <app data>/plugins.
-      if (!dir.startsWith(root)) throw new Error("that plugin is not in the app's plugin folder");
+      // Only ever a folder inside <app data>/plugins: "<root>-other" and "<root>/../x" are not.
+      const { sep } = await import("@tauri-apps/api/path");
+      const s = sep();
+      if (!dir.startsWith(`${root}${s}`) || dir.slice(root.length).split(s).includes("..")) throw new Error("that plugin is not in the app's plugin folder");
       if (await fs.exists(dir)) await fs.remove(dir, { recursive: true });
     },
     async pickFolder() {

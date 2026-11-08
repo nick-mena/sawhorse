@@ -453,4 +453,8 @@ How large a model has been tried, which SketchUp files do not open, and the hard
 
 ## Unsaved work
 
-Sawhorse keeps your work in this browser as you go. If the tab closes or reloads, the status line offers **Restore unsaved work?** with Restore and Discard; Edit > Restore Unsaved Work does the same while the offer stands. Restoring brings the undo history back too. Real files (.shz) arrive with their lane.
+Sawhorse keeps your work in this browser as you go. If the tab closes or reloads, the status line offers **Restore unsaved work?** with Restore and Discard; Edit > Restore Unsaved Work does the same while the offer stands. Restoring brings the undo history back too.
+
+File > Save writes a `.shz` file, and that file is the lasting copy of your work. Before it replaces anything, Sawhorse reads the new file back and refuses the save if it does not match your model, so the last good copy stays. On the desktop, the previous version is kept beside it as `<name>.bak` when that can be done.
+
+Open and New ask first when the model has unsaved changes. On the desktop, so do closing the window and Quit. Anything you change while a save is under way stays marked unsaved until you save again.

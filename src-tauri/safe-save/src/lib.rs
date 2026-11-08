@@ -54,13 +54,30 @@ fn siblings(path: &Path) -> Result<(PathBuf, PathBuf), SaveError> {
 }
 
 /// Write `bytes` to `path` atomically (see the module docs). The previous file, if any, is
-/// kept as `<name>.bak`.
+/// kept as `<name>.bak` when that can be done: a backup that cannot be written never stops
+/// the save, which is the copy the person asked for.
+///
+/// A symlink is written through (the file it names is the one replaced), and the replaced
+/// file's permissions carry over. The rename is flushed to disk with its folder, so a
+/// power cut after a save that reported success cannot bring the old file back.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), SaveError> {
-    let (tmp, bak) = siblings(path)?;
+    let target = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let (tmp, bak) = siblings(&target)?;
     let io = |e: std::io::Error| SaveError::Io(e.to_string());
+    let previous = fs::metadata(&target).ok();
+    // The name is ours alone: a stale temporary file is cleared, and a link planted there
+    // is never followed (create_new refuses anything already at the path).
+    match fs::symlink_metadata(&tmp) {
+        Ok(m) if !m.is_dir() => fs::remove_file(&tmp).map_err(io)?,
+        _ => {}
+    }
     let result = (|| {
         {
-            let mut f = fs::File::create(&tmp).map_err(io)?;
+            let mut f = fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(&tmp)
+                .map_err(io)?;
             f.write_all(bytes).map_err(io)?;
             f.sync_all().map_err(io)?;
         }
@@ -74,15 +91,33 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), SaveError> {
             return Err(SaveError::Mismatch);
         }
         drop(back);
-        if path.exists() {
-            fs::copy(path, &bak).map_err(io)?;
+        if let Some(p) = &previous {
+            let _ = fs::copy(&target, &bak);
+            // After the read-back, so a file that was read-only can still be checked. Best
+            // effort: not every file system keeps permissions.
+            let _ = fs::set_permissions(&tmp, p.permissions());
         }
-        fs::rename(&tmp, path).map_err(io)
+        fs::rename(&tmp, &target).map_err(io)?;
+        sync_folder(&target);
+        Ok(())
     })();
     if result.is_err() {
         let _ = fs::remove_file(&tmp);
     }
     result
+}
+
+/// Flush the folder holding `path`, so a rename in it survives a power cut. Best effort: the
+/// file is already whole, and not every file system can sync a folder.
+fn sync_folder(path: &Path) {
+    #[cfg(unix)]
+    if let Some(dir) = path.parent() {
+        if let Ok(d) = fs::File::open(dir) {
+            let _ = d.sync_all();
+        }
+    }
+    #[cfg(not(unix))]
+    let _ = path;
 }
 
 /// Percent-decode a path sent from the webview in a header (`encodeURIComponent`).
@@ -142,6 +177,64 @@ mod tests {
         assert!(matches!(write_atomic(&p, b"new"), Err(SaveError::Io(_))));
         assert_eq!(fs::read(&p).unwrap(), b"good");
         let _ = fs::remove_dir_all(&d);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_save_keeps_the_permissions_of_the_file_it_replaces() {
+        use std::os::unix::fs::PermissionsExt;
+        let d = dir("mode");
+        let p = d.join("Private.shz");
+        write_atomic(&p, b"first").unwrap();
+        fs::set_permissions(&p, fs::Permissions::from_mode(0o600)).unwrap();
+        write_atomic(&p, b"second").unwrap();
+        let mode = fs::metadata(&p).unwrap().permissions().mode() & 0o777;
+        let _ = fs::remove_dir_all(&d);
+        assert_eq!(mode, 0o600, "keeps its permissions");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_save_through_a_symlink_reaches_the_linked_file() {
+        let d = dir("link");
+        let real = d.join("Real.shz");
+        let link = d.join("Link.shz");
+        write_atomic(&real, b"first").unwrap();
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        write_atomic(&link, b"second").unwrap();
+        let bytes = fs::read(&real).unwrap();
+        let link_was_kept = fs::symlink_metadata(&link).unwrap().is_symlink();
+        let _ = fs::remove_dir_all(&d);
+        assert_eq!(bytes, b"second", "reaches the linked file");
+        assert!(link_was_kept);
+    }
+
+    #[test]
+    fn a_backup_that_cannot_be_written_does_not_stop_the_save() {
+        let d = dir("bak");
+        let p = d.join("Shelf.shz");
+        write_atomic(&p, b"good").unwrap();
+        fs::create_dir_all(d.join("Shelf.shz.bak")).unwrap();
+        let saved = write_atomic(&p, b"new");
+        let _ = fs::remove_dir_all(&d);
+        assert!(saved.is_ok(), "a backup that cannot be written: {saved:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_link_planted_at_the_temporary_name_is_not_followed() {
+        let d = dir("planted");
+        let victim = d.join("victim");
+        fs::write(&victim, b"untouched").unwrap();
+        std::os::unix::fs::symlink(&victim, d.join(".Doc.shz.saving")).unwrap();
+        write_atomic(&d.join("Doc.shz"), b"mine").unwrap();
+        let (kept, saved) = (
+            fs::read(&victim).unwrap(),
+            fs::read(d.join("Doc.shz")).unwrap(),
+        );
+        let _ = fs::remove_dir_all(&d);
+        assert_eq!(kept, b"untouched");
+        assert_eq!(saved, b"mine");
     }
 
     #[test]

@@ -44,13 +44,15 @@ fn with_key<T>(
 }
 
 /// The device's Ed25519 public key, base64url (the private key never leaves Rust).
-#[tauri::command]
+// Commands that wait on the disk or the Keychain run off the main thread: a plain command
+// runs on it, and the app's window stops responding until it returns.
+#[tauri::command(async)]
 fn device_public_key(state: State<'_, Device>) -> Result<String, String> {
     with_key(&state, |k| Ok(k.public_key_b64()))
 }
 
 /// Sign a render-service request (base64url bytes in, base64url signature out).
-#[tauri::command]
+#[tauri::command(async)]
 fn device_sign(state: State<'_, Device>, message: String) -> Result<String, String> {
     with_key(&state, |k| k.sign_b64(&message).map_err(|e| e.to_string()))
 }
@@ -86,7 +88,7 @@ fn open_plugin_folder(app: AppHandle, path: String) -> Result<(), String> {
 /// Save a file without ever leaving it half written (lane 16, `sawhorse-safe-save`): the
 /// bytes are the request's raw body, the path a percent-encoded `x-path` header. Only a path
 /// in the fs scope (one the person picked in a Save dialog, or opened) is written.
-#[tauri::command]
+#[tauri::command(async)]
 fn save_file_atomic(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<(), String> {
     let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
         return Err("save_file_atomic takes the file's bytes as its body".into());
@@ -107,9 +109,52 @@ fn save_file_atomic(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<
     sawhorse_safe_save::write_atomic(&path, bytes).map_err(|e| e.to_string())
 }
 
+/// The menu item that stands in for macOS's standard Quit.
+#[cfg(target_os = "macos")]
+const QUIT_ITEM: &str = "sawhorse-quit";
+
+/// The standard menu, with Quit going through the window. macOS's own Quit item ends the
+/// app at once, past the window's close request, so unsaved work would go without a question.
+#[cfg(target_os = "macos")]
+fn menu_asking_before_quit<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> tauri::Result<tauri::menu::Menu<R>> {
+    use tauri::menu::{Menu, MenuItem, MenuItemKind};
+    let menu = Menu::default(app)?;
+    for top in menu.items()? {
+        let MenuItemKind::Submenu(sub) = top else {
+            continue;
+        };
+        for (at, item) in sub.items()?.into_iter().enumerate() {
+            let MenuItemKind::Predefined(p) = &item else {
+                continue;
+            };
+            if p.text()?.starts_with("Quit") {
+                sub.remove(&item)?;
+                let quit =
+                    MenuItem::with_id(app, QUIT_ITEM, "Quit Sawhorse", true, Some("CmdOrCtrl+Q"))?;
+                sub.insert(&quit, at)?;
+                return Ok(menu);
+            }
+        }
+    }
+    Ok(menu)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "macos")]
+    let builder = builder
+        .menu(menu_asking_before_quit)
+        .on_menu_event(|app, event| {
+            if event.id().as_ref() == QUIT_ITEM {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.close();
+                }
+            }
+        });
+    builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_opener::init())

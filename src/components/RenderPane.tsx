@@ -73,14 +73,12 @@ function packLabel(p: Pack): string {
 }
 
 /** A window opened inside the click (so popup blockers allow it), pointed at checkout once the URL is known. */
-function preopen(): { go(url: string): boolean; close(): void } {
+function preopen(): { go(url: string): Promise<boolean>; close(): void } {
   const tauri = (globalThis as unknown as { __TAURI_INTERNALS__?: { invoke(cmd: string, args?: Record<string, unknown>): Promise<unknown> } }).__TAURI_INTERNALS__;
   if (tauri) {
     return {
-      go: (url) => {
-        void tauri.invoke("open_external", { url });
-        return true;
-      },
+      // false shows the checkout link instead: the shell may refuse, or find no browser.
+      go: (url) => tauri.invoke("open_external", { url }).then(() => true, () => false),
       close: () => {},
     };
   }
@@ -92,7 +90,7 @@ function preopen(): { go(url: string): boolean; close(): void } {
     w = null;
   }
   return {
-    go: (url) => {
+    go: async (url) => {
       if (!w || w.closed) return false;
       w.location.href = url;
       return true;
@@ -200,7 +198,7 @@ export function RenderPane({ credits, capture }: RenderPaneProps) {
     setBuying(p.id);
     try {
       const s = await client.checkout(p.id);
-      const opened = win.go(s.url);
+      const opened = await win.go(s.url);
       credits.watchCheckout();
       const where = s.mode === "simulated" ? "A simulated checkout (this service has no Stripe keys; nothing is charged)" : "Stripe Checkout";
       setResult({

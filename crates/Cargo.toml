@@ -41,14 +41,14 @@ manifold-rust = { version = "=0.16.0", default-features = false }
 cavalier_contours = { version = "0.9", default-features = false }
 # 3MF: our writer is hand-made (crates/export/src/three_mf.rs); threemf reads it back in
 # tests and reads 3MF imports.
-threemf = "0.8"
+threemf = "0.8.1"
 # Zip containers (3MF, .shz). Already in the tree through threemf; same features.
-zip = { version = "8", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 # PNG texture images (lane 10); already in the tree through zip.
 flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 crc32fast = "1.5"
 # XML for SVG import. Already in the tree through threemf.
-quick-xml = "0.39"
+quick-xml = "0.42"
 serde = { version = "1", features = ["derive"] }
 # Exact f64 parsing: .shz snapshots and op logs must read back bit for bit.
 serde_json = { version = "1", features = ["float_roundtrip"] }

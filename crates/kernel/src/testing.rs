@@ -1162,6 +1162,12 @@ pub fn check_sequence(ops: &[Op]) -> Result<RunSummary, String> {
             d.hash_hex()
         ));
     }
+    // Every state a sequence reaches can be saved: its snapshot rebuilds the same model.
+    let rebuilt = Model::from_snapshot(&d.model().snapshot())
+        .map_err(|e| format!("the snapshot does not rebuild: {e}"))?;
+    if let Some(why) = crate::hash::read_back_difference(d.model(), &rebuilt) {
+        return Err(format!("the snapshot rebuilds differently: {why}"));
+    }
     summary.objects = d.model().objects().len();
     Ok(summary)
 }

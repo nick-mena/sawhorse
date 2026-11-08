@@ -348,6 +348,17 @@ mod tests {
         assert!(!external_url_allowed("javascript:alert(1)"));
     }
 
+    /// Known gap: the browser resolves `..`, so this opens any page of a loopback server.
+    /// Fails when the check is fixed, and the attribute goes.
+    #[test]
+    #[should_panic(expected = "stays under dev/checkout")]
+    fn a_checkout_url_cannot_climb_out_of_dev_checkout() {
+        assert!(
+            !external_url_allowed("http://127.0.0.1:8787/dev/checkout/../../v1/balance"),
+            "stays under dev/checkout"
+        );
+    }
+
     /// The real OS keychain. Run by hand: `cargo test -p sawhorse-device-key -- --ignored`.
     #[test]
     #[ignore]

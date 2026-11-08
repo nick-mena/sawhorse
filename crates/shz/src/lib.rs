@@ -1007,7 +1007,8 @@ mod tests {
         let e = read(&file).unwrap_err();
         assert!(t.elapsed().as_millis() < 100, "{:?}", t.elapsed());
         assert!(
-            e.to_string().contains("not the 1000 its header says"),
+            e.to_string()
+                .contains("larger than its declared uncompressed size"),
             "{e}"
         );
         // And one that claims more than Deflate can do (a 200 MB claim from a few bytes).
@@ -1110,7 +1111,7 @@ mod tests {
             .push(serde_json::json!({ "path": "assets/t8.png", "mime": "image/png" }));
         let mut zw = zip::ZipWriter::new(Cursor::new(Vec::new()));
         for i in 0..zip.len() {
-            let name = zip.by_index(i).unwrap().name().to_string();
+            let name = zip.by_index(i).unwrap().name().unwrap().to_string();
             zw.start_file(name.as_str(), SimpleFileOptions::default())
                 .unwrap();
             if name == "scene.json" {

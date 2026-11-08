@@ -92,6 +92,35 @@ export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
+/**
+ * Ask a yes/no question and wait for the answer. In the browser that is `window.confirm`. In
+ * the desktop app the dialog plugin replaces `window.confirm` with an asynchronous one that
+ * hands back a Promise (truthy whatever the answer, to code that does not wait), so there the
+ * question goes through the plugin's own dialog, with the app's name on it, and is awaited.
+ */
+export async function askYesNo(message: string): Promise<boolean> {
+  if (isTauri()) {
+    const { confirm } = await import("@tauri-apps/plugin-dialog");
+    return confirm(message, { title: "Sawhorse", kind: "warning" });
+  }
+  return window.confirm(message);
+}
+
+/**
+ * Desktop: ask before the window closes over unsaved work. A question that cannot be asked
+ * lets the window close: a person must always be able to quit, and autosave offers the work
+ * back on the next start.
+ */
+export async function guardTauriClose(dirty: () => boolean): Promise<() => void> {
+  if (!isTauri()) return () => {};
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  return getCurrentWindow().onCloseRequested(async (e) => {
+    if (!dirty()) return;
+    const leave = await askYesNo("Quit without saving your changes to this model?").catch(() => true);
+    if (!leave) e.preventDefault();
+  });
+}
+
 interface FsaWritable {
   write(data: BufferSource | Blob): Promise<void>;
   close(): Promise<void>;
