@@ -1,6 +1,7 @@
 // A small naming dialog (Make Component): a title, a text field, OK and Cancel. Enter is
 // OK, Esc is Cancel. Shown over the viewport, in the import report's style.
 import { useState } from "react";
+import { useDialogFocus } from "./useDialogFocus";
 
 export interface NameRequest {
   title: string;
@@ -12,6 +13,7 @@ export interface NameRequest {
 
 export function NameDialog({ req, onClose }: { req: NameRequest; onClose: () => void }) {
   const [v, setV] = useState(req.value);
+  const dialog = useDialogFocus();
   const ok = () => {
     const name = v.trim();
     if (!name) return;
@@ -19,7 +21,16 @@ export function NameDialog({ req, onClose }: { req: NameRequest; onClose: () => 
     req.onOk(name);
   };
   return (
-    <section className="name-dialog" role="dialog" aria-label={req.title}>
+    <section
+      ref={dialog}
+      className="name-dialog"
+      role="dialog"
+      aria-label={req.title}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Escape") onClose();
+      }}
+    >
       <header>
         <b>{req.title}</b>
       </header>
@@ -32,9 +43,7 @@ export function NameDialog({ req, onClose }: { req: NameRequest; onClose: () => 
           onFocus={(e) => e.currentTarget.select()}
           onChange={(e) => setV(e.currentTarget.value)}
           onKeyDown={(e) => {
-            e.stopPropagation();
             if (e.key === "Enter") ok();
-            if (e.key === "Escape") onClose();
           }}
         />
       </label>

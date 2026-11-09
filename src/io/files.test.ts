@@ -1,9 +1,9 @@
 // Lane 16 (C6): a file is measured before it is read. A dropped or chosen file over its
 // limit is refused by its size, without its bytes ever being read.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { askYesNo, checkSize, guardTauriClose, FileTooLarge, MAX_READ_BYTES, readBrowserFile, readLimit } from "./files";
+import { askUnsaved, checkSize, guardTauriClose, FileTooLarge, MAX_READ_BYTES, readBrowserFile, readLimit } from "./files";
 
-const dialog = vi.hoisted(() => ({ confirm: vi.fn<(message: string, options?: object) => Promise<boolean>>() }));
+const dialog = vi.hoisted(() => ({ message: vi.fn<(message: string, options?: object) => Promise<string>>() }));
 vi.mock("@tauri-apps/plugin-dialog", () => dialog);
 type CloseEvent = { preventDefault(): void };
 const win = vi.hoisted(() => ({ handler: null as null | ((e: { preventDefault(): void }) => Promise<void>) }));
@@ -54,45 +54,60 @@ describe("reading files", () => {
 
 // The desktop's dialog plugin makes window.confirm a Promise, truthy whatever the answer, to
 // code that does not wait (upstream #32): work was replaced without asking.
-describe("asking before discarding", () => {
+describe("asking about unsaved changes", () => {
   const w = window as unknown as Record<string, unknown>;
   afterEach(() => {
     delete w.__TAURI_INTERNALS__;
-    dialog.confirm.mockReset();
+    dialog.message.mockReset();
   });
 
-  it("in the browser is window.confirm", async () => {
+  it("in the browser is window.confirm: discard or stay", async () => {
     const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
-    await expect(askYesNo("Discard?")).resolves.toBe(false);
+    await expect(askUnsaved("Bench", "opening another")).resolves.toBe("cancel");
+    confirm.mockReturnValue(true);
+    await expect(askUnsaved("Bench", "opening another")).resolves.toBe("discard");
     confirm.mockRestore();
-    expect(dialog.confirm).not.toHaveBeenCalled();
+    expect(dialog.message).not.toHaveBeenCalled();
   });
 
-  it("on the desktop goes through the plugin and waits for No", async () => {
+  it("on the desktop offers Save, Don't Save and Cancel, names the file, and waits", async () => {
     w.__TAURI_INTERNALS__ = {};
-    let answer: ((yes: boolean) => void) | null = null;
-    dialog.confirm.mockImplementation(() => new Promise<boolean>((r) => (answer = r)));
-    const asked = askYesNo("Discard?");
+    let answer: ((button: string) => void) | null = null;
+    dialog.message.mockImplementation(() => new Promise<string>((r) => (answer = r)));
+    const asked = askUnsaved("Bench", "quitting");
     let settled = false;
     void asked.then(() => (settled = true));
-    await vi.waitFor(() => expect(dialog.confirm).toHaveBeenCalled());
+    await vi.waitFor(() => expect(dialog.message).toHaveBeenCalled());
     await new Promise((r) => setTimeout(r, 20));
     expect(settled).toBe(false);
-    answer!(false);
-    await expect(asked).resolves.toBe(false);
+    const [text, options] = dialog.message.mock.calls[0];
+    expect(text).toContain("Bench");
+    expect(options).toMatchObject({ buttons: { yes: "Save", no: "Don't Save", cancel: "Cancel" } });
+    answer!("Cancel");
+    await expect(asked).resolves.toBe("cancel");
+  });
+
+  it("reads the buttons by their words or the plugin's names", async () => {
+    w.__TAURI_INTERNALS__ = {};
+    for (const [button, result] of [["Save", "save"], ["Yes", "save"], ["Don't Save", "discard"], ["No", "discard"], ["Cancel", "cancel"]]) {
+      dialog.message.mockResolvedValue(button);
+      await expect(askUnsaved("Bench", "quitting")).resolves.toBe(result);
+    }
   });
 });
 
 describe("closing the desktop window", () => {
   const w = window as unknown as Record<string, unknown>;
+  const save = vi.fn<() => Promise<boolean>>();
   afterEach(() => {
     delete w.__TAURI_INTERNALS__;
-    dialog.confirm.mockReset();
+    dialog.message.mockReset();
+    save.mockReset();
   });
 
   async function close(dirty: boolean): Promise<boolean> {
     w.__TAURI_INTERNALS__ = {};
-    await guardTauriClose(() => dirty);
+    await guardTauriClose(() => dirty, () => "Bench", save);
     const preventDefault = vi.fn();
     await win.handler!({ preventDefault });
     return preventDefault.mock.calls.length === 0;
@@ -100,21 +115,36 @@ describe("closing the desktop window", () => {
 
   it("closes without a question when nothing is unsaved", async () => {
     expect(await close(false)).toBe(true);
-    expect(dialog.confirm).not.toHaveBeenCalled();
+    expect(dialog.message).not.toHaveBeenCalled();
   });
 
-  it("stays open when the person says no", async () => {
-    dialog.confirm.mockResolvedValue(false);
+  it("stays open on Cancel", async () => {
+    dialog.message.mockResolvedValue("Cancel");
     expect(await close(true)).toBe(false);
   });
 
-  it("closes when the person says yes", async () => {
-    dialog.confirm.mockResolvedValue(true);
+  it("closes on Don't Save, without saving", async () => {
+    dialog.message.mockResolvedValue("Don't Save");
     expect(await close(true)).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("saves on Save, and closes once it has", async () => {
+    dialog.message.mockResolvedValue("Save");
+    save.mockResolvedValue(true);
+    expect(await close(true)).toBe(true);
+    expect(save).toHaveBeenCalledOnce();
+  });
+
+  it("stays open when the save fails or is cancelled", async () => {
+    dialog.message.mockResolvedValue("Save");
+    save.mockResolvedValue(false);
+    expect(await close(true)).toBe(false);
   });
 
   it("never traps the person: a question that fails lets the window close", async () => {
-    dialog.confirm.mockRejectedValue(new Error("no dialog"));
+    dialog.message.mockRejectedValue(new Error("no dialog"));
     expect(await close(true)).toBe(true);
   });
 });
+

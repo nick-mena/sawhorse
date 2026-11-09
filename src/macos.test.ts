@@ -22,6 +22,7 @@ describe("the webview's native surface", () => {
     expect([...permissions].sort()).toEqual([
       "core:default",
       "core:window:allow-destroy",
+      "core:window:allow-set-title",
       "dialog:allow-message",
       "dialog:allow-open",
       "dialog:allow-save",

@@ -47,7 +47,7 @@ test("the Eraser softens, hides and unsoftens edges, as its hint says, one undo 
   await box(page);
   expect(await counts(page)).toEqual({ hard: 12, soft: 0, hidden: 0, smoothNormals: false });
   await page.keyboard.press("e");
-  await expect(hint(page)).toContainText("Ctrl softens and smooths, Shift hides, Ctrl+Shift unsoftens");
+  await expect(hint(page)).toContainText(/(Ctrl|Cmd) softens and smooths, Shift hides, (Ctrl|Cmd)\+Shift unsoftens/);
   // The box's front right upright edge, x = 12 in, y = 0, half way up.
   const upright: V3 = [12, 0, 3];
   const click = async (mods: string[]) => {

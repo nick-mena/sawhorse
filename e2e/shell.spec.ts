@@ -55,6 +55,8 @@ test("no render service configured: nothing asks for one, nothing logs a refused
 
 test("keyboard shortcuts switch tools", async ({ page }) => {
   await page.goto("/");
+  // A key pressed before the app has started has nothing to reach.
+  await expect(page.locator("main.vp")).not.toHaveAttribute("data-kernel", "loading", { timeout: 15_000 });
   for (const [key, tool] of [["p", "pushpull"], ["r", "rect"], ["l", "line"], ["Space", "select"]] as const) {
     await page.keyboard.press(key);
     await expect(page.locator(`.tool[data-tool="${tool}"]`)).toHaveAttribute("aria-pressed", "true");

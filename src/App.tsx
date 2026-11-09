@@ -4,6 +4,7 @@ import { TopBar, type MenuItem } from "./components/TopBar";
 import { DemoBanner } from "./components/DemoBanner";
 import { isWebDemo, RELEASES_URL, REPO_URL, sitePage } from "./lib/site";
 import { ToolRail } from "./components/ToolRail";
+import { isMac } from "./lib/keys";
 import { Viewport, type KernelState, type ViewportPointer } from "./components/Viewport";
 import { SidePanel, type PaneId } from "./components/SidePanel";
 import { CutListReport } from "./components/CutListReport";
@@ -56,7 +57,7 @@ import { InferenceMemory, kernelResolver, ToolDriver } from "./tools/driver";
 import { friendlyError, setNameSource } from "./lib/names";
 import { explodeOps } from "./lib/curves";
 import { autosaveEnabled, clearAutosave, clearOffered, describeAutosave, loadOffered, logIsWorth, MAX_AUTOSAVE_BYTES, saveAutosave, takeAutosave, worthRestoring, type Autosave } from "./lib/autosave";
-import { ALL_EXTENSIONS, IMPORT_TYPES, SHZ, askYesNo, extensionOf, guardTauriClose, onTauriDrop, pickFile, readBrowserFile, saveFile, stem, type FileHandle, type PickedFile } from "./io/files";
+import { ALL_EXTENSIONS, IMPORT_TYPES, SHZ, askUnsaved, extensionOf, guardTauriClose, setWindowTitle, onTauriDrop, pickFile, readBrowserFile, saveFile, stem, type FileHandle, type PickedFile } from "./io/files";
 import { EXPORTS, MTL_TYPE, textureType, type ExportChoice } from "./io/exports";
 import type { ExportOptions, ImportUnit, OpOutcome } from "./kernel/types";
 import { ImportReport, type Report } from "./components/ImportReport";
@@ -305,6 +306,7 @@ export function App() {
   const [toolView, setToolView] = useState<ToolView>(EMPTY_VIEW);
   // The open document: its name, where it lives (for Save), the log length when last saved.
   const [docName, setDocName] = useState<string | null>(null);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
   const fileHandle = useRef<FileHandle | undefined>(undefined);
   const [savedLogLen, setSavedLogLen] = useState<number | null>(null);
   const [report, setReport] = useState<Report | null>(null);
@@ -593,17 +595,27 @@ export function App() {
   dirtyRef.current = dirty;
   useEffect(() => {
     document.title = `${dirty ? "• " : ""}${docName ? stem(docName) : "Untitled"} - Sawhorse`;
+    void setWindowTitle(`${docName ? stem(docName) : "Untitled"}${dirty ? " — Edited" : ""}`).catch(() => {});
   }, [dirty, docName]);
 
-  /** True when the model may be replaced: nothing is unsaved, or the person says so. Awaited: the desktop's question is asynchronous. */
-  const confirmDiscard = useCallback(async () => (dirtyRef.current ? askYesNo("Discard the unsaved changes to this model?") : true), []);
+  /** True when the model may be replaced: nothing is unsaved, it was saved just now, or the
+   * person says to drop it. Awaited: the desktop's question is asynchronous. */
+  const saveRef = useRef<(as: boolean) => Promise<boolean>>(async () => false);
+  const docTitle = docName ? stem(docName) : "Untitled";
+  const docTitleRef = useRef(docTitle);
+  docTitleRef.current = docTitle;
+  const confirmDiscard = useCallback(async (doing = "replacing it") => {
+    if (!dirtyRef.current) return true;
+    const answer = await askUnsaved(docTitleRef.current, doing);
+    return answer === "discard" || (answer === "save" && (await saveRef.current(false)));
+  }, []);
 
   // The desktop app asks before its window closes over unsaved work (Close, and Quit: see
   // src-tauri/src/lib.rs).
   useEffect(() => {
     let off: (() => void) | undefined;
     let gone = false;
-    void guardTauriClose(() => dirtyRef.current).then((stop) => {
+    void guardTauriClose(() => dirtyRef.current, () => docTitleRef.current, () => saveRef.current(false)).then((stop) => {
       if (gone) stop();
       else off = stop;
     });
@@ -774,7 +786,7 @@ export function App() {
   const save = useCallback(
     async (as: boolean) => {
       const k = kernelRef.current;
-      if (!k) return;
+      if (!k) return false;
       try {
         await queue.current;
         // What this save holds. Read now: the person can keep working while it is written
@@ -786,19 +798,25 @@ export function App() {
         const bytes = await k.saveShz(live.current.units, png, pluginsRef.current?.manager.doc.json() ?? "");
         const name = `${docName ? stem(docName) : "Untitled"}.shz`;
         const res = await saveFile(name, bytes, SHZ, as ? undefined : fileHandle.current);
-        if (!res) return;
+        if (!res) return false;
         setDocName(res.name);
         fileHandle.current = res.handle;
         setSavedLogLen(saving?.log_len ?? null);
         // Saved: this session's autosave is not needed to get the work back (lane 16).
         markClean(saving?.log_hash ?? null);
-        setMessage({ text: `Saved ${res.name} (${(bytes.length / 1024).toFixed(0)} KB).`, error: false });
+        setSavedAt(new Date());
+        // Reaching here means the kernel read these bytes back and found this model in them.
+        setMessage({ text: `Saved ${res.name} (${(bytes.length / 1024).toFixed(0)} KB). It reads back as this model.`, error: false });
+        return true;
       } catch (e) {
         setMessage({ text: `Could not save: ${e instanceof Error ? e.message : String(e)}`, error: true });
+        return false;
       }
     },
     [docName, markClean],
   );
+
+  saveRef.current = save;
 
   /** What an export takes: the selected solids (and what is in selected groups and components), or everything visible. */
   const exportScope = useCallback((): ExportOptions["scope"] => {
@@ -2296,13 +2314,13 @@ export function App() {
       }
       if (sheetsMode) return;
       if (e.key === "Shift" && !textEntry) activeRef.current?.onShift(true);
-      if ((e.key === "Control" || e.key === "Alt") && !e.repeat && !textEntry) {
-        // A tap of Ctrl or Alt alone (Move / Rotate copy, Move autofold). Alt must not
-        // focus the browser's menu bar.
+      if ((e.key === "Control" || e.key === "Alt" || (e.key === "Meta" && isMac())) && !e.repeat && !textEntry) {
+        // A tap of Ctrl (Cmd on a Mac) or Alt alone (Move / Rotate copy, Move autofold). Alt
+        // must not focus the browser's menu bar.
         if (e.key === "Alt") e.preventDefault();
         // After any click or tool key still on its way: the tap belongs to the tool that is
         // active by then ("s" then Ctrl scales about the centre).
-        const mod = e.key === "Control" ? "ctrl" : "alt";
+        const mod = e.key === "Alt" ? "alt" : "ctrl";
         void afterPointer(() => activeRef.current?.onModifier(mod));
         return;
       }
@@ -2741,6 +2759,8 @@ export function App() {
         creditsTitle={chipTitle}
         onCredits={() => setRenderFocus((n) => n + 1)}
         menus={menus}
+        docName={docTitle}
+        docState={dirty ? "Edited" : savedAt ? `Saved ${savedAt.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : null}
       />
       <ToolRail active={toolId} onSelect={selectTool} plugins={plugins.toolDefs} />
       <SceneTabs

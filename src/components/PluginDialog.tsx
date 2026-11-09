@@ -4,6 +4,7 @@
 //   plugin cannot pass itself off as the app.
 import { useState } from "react";
 import type { DialogRequest } from "../plugins/manager";
+import { useDialogFocus } from "./useDialogFocus";
 
 export type PluginDialogState =
   | {
@@ -29,6 +30,7 @@ export function formatBytes(n: number): string {
 
 export function PluginDialog({ state, onClose }: { state: PluginDialogState; onClose: () => void }) {
   const [text, setText] = useState(state.kind === "plugin" && state.req.kind === "prompt" ? state.req.value : "");
+  const dialog = useDialogFocus();
   const finish = (v: string | boolean | null) => {
     onClose();
     if (state.kind === "permissions") state.resolve(v === true);
@@ -41,7 +43,7 @@ export function PluginDialog({ state, onClose }: { state: PluginDialogState; onC
 
   if (state.kind === "permissions") {
     return (
-      <section className="name-dialog plugin-dialog" role="dialog" aria-label={`Enable ${state.name}`} onKeyDown={keys}>
+      <section ref={dialog} className="name-dialog plugin-dialog" role="dialog" aria-label={`Enable ${state.name}`} onKeyDown={keys}>
         <header>
           <b>Enable {state.name}?</b> <small>
             {state.version} · {state.author}
@@ -86,7 +88,7 @@ export function PluginDialog({ state, onClose }: { state: PluginDialogState; onC
     // Lane 17: the app's own question (not the plugin's words) before a browser without a
     // save dialog puts a plugin's file in the downloads.
     return (
-      <section className="name-dialog plugin-dialog" role="dialog" aria-label={`Save ${r.name}?`} data-download="" onKeyDown={keys}>
+      <section ref={dialog} className="name-dialog plugin-dialog" role="dialog" aria-label={`Save ${r.name}?`} data-download="" onKeyDown={keys}>
         <header>
           <b>Save a file from {r.plugin}?</b>
         </header>
@@ -105,7 +107,7 @@ export function PluginDialog({ state, onClose }: { state: PluginDialogState; onC
     );
   }
   return (
-    <section className="name-dialog plugin-dialog" role="dialog" aria-label={`${r.plugin}: ${r.title}`} onKeyDown={keys}>
+    <section ref={dialog} className="name-dialog plugin-dialog" role="dialog" aria-label={`${r.plugin}: ${r.title}`} onKeyDown={keys}>
       <header>
         <b>{r.title}</b> <small>from {r.plugin}</small>
       </header>

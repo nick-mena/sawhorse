@@ -53,6 +53,18 @@ test("press, drag and let go onto another solid's corner", async ({ page }) => {
   near(s[0].max, [36, 12, 3]);
 });
 
+test("on a Mac a tap of Cmd copies, and the status line says Cmd", async ({ page }) => {
+  test.skip(process.platform !== "darwin", "Cmd is the Mac's copy key");
+  await ready(page);
+  await box(page, "3,3", "30");
+  await page.keyboard.press("m");
+  await expect(page.locator("#hint")).toContainText("Cmd copies");
+  await page.keyboard.press("Meta");
+  await clickAt(page, [0, 0, 0], "endpoint", 1, 1);
+  await page.keyboard.press("ArrowLeft");
+  await expect(page.locator("#hint")).toContainText("Copying along the green axis");
+});
+
 test("Ctrl copies; x3 makes an array; /2 divides it; copies are separate solids", async ({ page }) => {
   const vp = await ready(page);
   await box(page, "3,3", "30");

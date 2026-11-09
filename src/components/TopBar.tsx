@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BrandMark } from "./glyphs";
 import { VIEWS, type ViewId } from "../viewport/camera";
+import { shortcutLabel } from "../lib/keys";
 
 // "Plugins" (lane 11) sits after Tools: commands from enabled plugins, and managing them.
 const MENUS = ["File", "Edit", "View", "Draw", "Tools", "Plugins", "Window", "Help"];
@@ -35,9 +36,13 @@ export interface TopBarProps {
   onCredits?: () => void;
   /** Drop-down contents by menu name; menus without an entry stay inert, as in the mock. */
   menus?: Partial<Record<string, MenuItem[]>>;
+  /** The open file, always in view. */
+  docName?: string;
+  /** "Edited" or "Saved 2:14 PM"; null when nothing has happened yet. */
+  docState?: string | null;
 }
 
-function Entry({ item: it, sub, setSub, close }: { item: MenuItem; sub: string | null; setSub: (s: string | null) => void; close: () => void }) {
+function Entry({ item: it, sub, setSub, close }: { item: MenuItem; sub: string | null; setSub: (s: string | null) => void; close: (byKeyboard: boolean) => void }) {
   if (it === "-") return <hr />;
   if ("items" in it) {
     const isOpen = sub === it.label;
@@ -69,8 +74,8 @@ function Entry({ item: it, sub, setSub, close }: { item: MenuItem; sub: string |
       disabled={it.disabled}
       title={it.title}
       onMouseEnter={() => setSub(null)}
-      onClick={() => {
-        close();
+      onClick={(e) => {
+        close(e.detail === 0);
         it.onSelect();
       }}
     >
@@ -78,17 +83,24 @@ function Entry({ item: it, sub, setSub, close }: { item: MenuItem; sub: string |
         {it.checked === undefined ? "" : it.checked ? "✓ " : "   "}
         {it.label}
       </span>
-      {it.keys ? <kbd>{it.keys}</kbd> : null}
+      {it.keys ? <kbd>{shortcutLabel(it.keys)}</kbd> : null}
     </button>
   );
 }
 
-export function TopBar({ view, onView, credits, showCredits = true, creditsState, creditsTitle, onCredits, menus }: TopBarProps) {
+export function TopBar({ view, onView, credits, showCredits = true, creditsState, creditsTitle, onCredits, menus, docName, docState }: TopBarProps) {
   const [open, setOpen] = useState<string | null>(null);
   const [sub, setSub] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => setSub(null), [open]);
+
+  // Chosen from the keyboard, focus goes back to the menu's own button, not lost with the
+  // entry (and a dialog the entry opens returns it there). A mouse user's Space stays a tool key.
+  const closeMenu = (byKeyboard: boolean) => {
+    if (byKeyboard) navRef.current?.querySelector<HTMLElement>('button[aria-expanded="true"]')?.focus();
+    setOpen(null);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -127,7 +139,7 @@ export function TopBar({ view, onView, credits, showCredits = true, creditsState
               {items && open === m ? (
                 <div className="drop" role="menu" aria-label={m}>
                   {items.map((it, i) => (
-                    <Entry key={i} item={it} sub={sub} setSub={setSub} close={() => setOpen(null)} />
+                    <Entry key={i} item={it} sub={sub} setSub={setSub} close={closeMenu} />
                   ))}
                 </div>
               ) : null}
@@ -135,6 +147,13 @@ export function TopBar({ view, onView, credits, showCredits = true, creditsState
           );
         })}
       </nav>
+      <div className="spacer"></div>
+      {docName ? (
+        <div className="doc-state" data-testid="doc-state" data-edited={docState === "Edited" || undefined}>
+          <b>{docName}</b>
+          {docState ? <span>{docState}</span> : null}
+        </div>
+      ) : null}
       <div className="spacer"></div>
       <div className="views" role="group" aria-label="Views">
         {VIEWS.map((v) => (

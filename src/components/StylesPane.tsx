@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FaceStyle, Shadows, Style } from "../kernel/types";
 import { DAYS_IN_MONTH, DEFAULT_SHADOWS, FACE_STYLES, MONTHS, STYLE_PRESETS, clock, compactStyle, fullStyle, hexRgb, rgbHex, type FullStyle } from "../lib/looks";
+import { platformText } from "../lib/keys";
 
 /** How long after the last arrow-key step a slider commits (lane 15: one undo step). */
 export const SLIDER_KEY_COMMIT_MS = 700;
@@ -149,7 +150,7 @@ export function StylesPane({ style, shadows, onStyle, onShadows, onPreviewShadow
         <Toggle label="Profiles" checked={s.edges.profiles} disabled={!s.edges.edges} onChange={(v) => set({ edges: { ...s.edges, profiles: v } })} title="Outlines drawn heavier" />
         <Toggle label="Extensions" checked={s.edges.extensions} disabled={!s.edges.edges} onChange={(v) => set({ edges: { ...s.edges, extensions: v } })} title="Edges run a little past their ends" />
         <Toggle label="Endpoints" checked={s.edges.endpoints} disabled={!s.edges.edges} onChange={(v) => set({ edges: { ...s.edges, endpoints: v } })} title="The ends of edges drawn heavier" />
-        <Toggle label="Soft and hidden edges" checked={s.edges.soft} disabled={!s.edges.edges} onChange={(v) => set({ edges: { ...s.edges, soft: v } })} title="Show soft and hidden edges dashed, so you can see and pick them (the Eraser with Ctrl+Shift unsoftens)" />
+        <Toggle label="Soft and hidden edges" checked={s.edges.soft} disabled={!s.edges.edges} onChange={(v) => set({ edges: { ...s.edges, soft: v } })} title={platformText("Show soft and hidden edges dashed, so you can see and pick them (the Eraser with Ctrl+Shift unsoftens)")} />
       </div>
 
       <h4>Soften edges</h4>
@@ -173,7 +174,7 @@ export function StylesPane({ style, shadows, onStyle, onShadows, onPreviewShadow
         >
           Soften selected
         </button>
-        <p className="note">{softenTarget && softenTarget.objects.length ? softenTarget.label : "Select solids (open a group or component to reach its solids)."} The Eraser does it edge by edge: Ctrl softens and smooths, Shift hides, Ctrl+Shift unsoftens.</p>
+        <p className="note">{softenTarget && softenTarget.objects.length ? softenTarget.label : "Select solids (open a group or component to reach its solids)."} {platformText("The Eraser does it edge by edge: Ctrl softens and smooths, Shift hides, Ctrl+Shift unsoftens.")}</p>
       </div>
 
       <h4>Grid</h4>

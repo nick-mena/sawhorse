@@ -92,33 +92,49 @@ export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
+export type UnsavedAnswer = "save" | "discard" | "cancel";
+
 /**
- * Ask a yes/no question and wait for the answer. In the browser that is `window.confirm`. In
- * the desktop app the dialog plugin replaces `window.confirm` with an asynchronous one that
- * hands back a Promise (truthy whatever the answer, to code that does not wait), so there the
- * question goes through the plugin's own dialog, with the app's name on it, and is awaited.
+ * Ask what to do with unsaved changes, and wait for the answer. The desktop asks Save, Don't
+ * Save or Cancel through the dialog plugin, with the file's name on it. The browser only has
+ * `window.confirm`, so there it is discard or stay. The plugin also replaces `window.confirm`
+ * with one that hands back a Promise, which is why the browser's answer is awaited too.
  */
-export async function askYesNo(message: string): Promise<boolean> {
+export async function askUnsaved(name: string, doing: string): Promise<UnsavedAnswer> {
   if (isTauri()) {
-    const { confirm } = await import("@tauri-apps/plugin-dialog");
-    return confirm(message, { title: "Sawhorse", kind: "warning" });
+    const { message } = await import("@tauri-apps/plugin-dialog");
+    const answer = await message(`Do you want to save the changes to ${name} before ${doing}?`, {
+      title: "Sawhorse",
+      kind: "warning",
+      buttons: { yes: "Save", no: "Don't Save", cancel: "Cancel" },
+    });
+    if (answer === "Save" || answer === "Yes") return "save";
+    if (answer === "Don't Save" || answer === "No") return "discard";
+    return "cancel";
   }
-  return window.confirm(message);
+  return (await window.confirm("Discard the unsaved changes to this model?")) ? "discard" : "cancel";
 }
 
 /**
  * Desktop: ask before the window closes over unsaved work. A question that cannot be asked
  * lets the window close: a person must always be able to quit, and autosave offers the work
- * back on the next start.
+ * back on the next start. A save that fails or is cancelled keeps the window open.
  */
-export async function guardTauriClose(dirty: () => boolean): Promise<() => void> {
+export async function guardTauriClose(dirty: () => boolean, name: () => string, save: () => Promise<boolean>): Promise<() => void> {
   if (!isTauri()) return () => {};
   const { getCurrentWindow } = await import("@tauri-apps/api/window");
   return getCurrentWindow().onCloseRequested(async (e) => {
     if (!dirty()) return;
-    const leave = await askYesNo("Quit without saving your changes to this model?").catch(() => true);
-    if (!leave) e.preventDefault();
+    const answer = await askUnsaved(name(), "quitting").catch((): UnsavedAnswer => "discard");
+    if (answer === "cancel" || (answer === "save" && !(await save()))) e.preventDefault();
   });
+}
+
+/** Desktop: name the file in the window's own title bar. The tab's title does this in a browser. */
+export async function setWindowTitle(title: string): Promise<void> {
+  if (!isTauri()) return;
+  const { getCurrentWindow } = await import("@tauri-apps/api/window");
+  await getCurrentWindow().setTitle(title);
 }
 
 interface FsaWritable {

@@ -5,6 +5,7 @@ import { useState } from "react";
 import type { StockDef, StockGrain, StockKind, StockLibrary } from "../kernel/types";
 import { parseLength, type UnitSystem } from "../lib/units";
 import { fineU, len, lenU, standardActual, stockSize, type Units } from "../nesting/format";
+import { useDialogFocus } from "./useDialogFocus";
 
 export interface StockDialogProps {
   library: StockLibrary;
@@ -44,6 +45,7 @@ function defaultOf(lib: StockLibrary, material: string): string | null {
 }
 
 export function StockDialog(p: StockDialogProps) {
+  const dialog = useDialogFocus();
   const lib = p.library;
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [editing, setEditing] = useState<string | null>(null);
@@ -117,6 +119,7 @@ export function StockDialog(p: StockDialogProps) {
   );
   return (
     <section
+      ref={dialog}
       className="name-dialog stock-dialog"
       role="dialog"
       aria-label="Stock"

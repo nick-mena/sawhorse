@@ -3,6 +3,7 @@ import { valueUnitKind, type ToolDef } from "../lib/tools";
 import { unitInfo, type UnitSystem } from "../lib/units";
 import { UnitPicker } from "./UnitPicker";
 import { dismissUnitsHint, UnitsHint, unitsHintDismissed } from "./UnitsHint";
+import { platformText } from "../lib/keys";
 
 export interface ValueBarProps {
   tool: ToolDef;
@@ -66,7 +67,7 @@ export const ValueBar = forwardRef<HTMLInputElement, ValueBarProps>(function Val
   return (
     <footer className="vcb">
       <div className={message?.error ? "hint err" : "hint"} id="hint" role="status" aria-live="polite">
-        <b>{message?.error ? "Can't do that." : `${tool.label}.`}</b> {message ? message.text : tool.hint}
+        <b>{message?.error ? "Can't do that." : `${tool.label}.`}</b> {platformText(message ? message.text : tool.hint)}
         {message?.actions?.map((a) => (
           <button key={a.label} type="button" className="hint-action" onClick={a.run}>
             {a.label}
