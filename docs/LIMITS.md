@@ -38,6 +38,7 @@ A model that large is still slow to work in where every solid is involved: the c
 | One import (a whole file) | 1,500,000 faces, 3,000,000 points, 50,000 objects |
 | Texture images | 512 per model, 16 MB and 4096 x 4096 pixels each, 256 MB and 128 million pixels in all |
 | An array | 1,000 copies |
+| One Add or Cut of parts | 256 solids |
 | A plugin batch | 2,000 ops (and a work budget, below) |
 | Guides, dimensions | 50,000 each per model |
 | Tags | 10,000 per model |

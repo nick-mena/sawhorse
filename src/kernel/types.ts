@@ -54,6 +54,7 @@ export type KernelOp =
   | { op: "make_group"; items: Item[]; name?: string | null }
   | { op: "make_component"; items: Item[]; name: string }
   | { op: "make_unique"; node: number }
+  | { op: "combine_parts"; target: Item; with: Item[]; how: "add" | "cut" }
   | { op: "explode"; node: number }
   | { op: "delete_node"; node: number }
   | { op: "rename"; item: Item; name: string | null }
@@ -352,6 +353,7 @@ export type OpOutcome =
   | { kind: "context_changed"; context: number | null }
   | { kind: "component_created"; instance: number; definition: number }
   | { kind: "made_unique"; definition: number }
+  | { kind: "parts_combined"; objects: number[]; unique: boolean }
   | { kind: "exploded"; objects: number[]; nodes: number[] }
   | { kind: "node_deleted" }
   | { kind: "visibility_set" }

@@ -123,7 +123,8 @@ test("moving part of a solid: a face slides, a corner bends a face unless autofo
   await page.keyboard.press("ArrowUp");
   await point(page, [12, 0, 12]);
   await type(page, "1");
-  await expect(hint).toContainText("would bend face");
+  await expect(hint).toContainText("would bend a face");
+  await expect(hint).toContainText("Tap Alt");
   await expect(hint).not.toContainText("#");
   // Alt turns autofold on: the same move folds the faces.
   await page.keyboard.press("Alt");

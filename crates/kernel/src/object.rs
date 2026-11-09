@@ -659,16 +659,56 @@ impl Object {
 
     /// `self op other` through the boolean engine, re-polygonised (see
     /// [`crate::boolean::combine`]). `Ok(None)`: the result is empty.
+    ///
+    /// Face ids are only unique within one solid, so `other`'s are renumbered first: its
+    /// face 3 must not pass for this solid's face 3 and take that face's paint. Its soft
+    /// edges and rims come along, or a round mortise would come out faceted. Its paint comes
+    /// along only in a union: the wall of a cut is this solid's own material, however the
+    /// cutter was painted.
     pub fn combine(&self, other: &Object, op: BoolOp) -> Result<Option<Object>, BooleanError> {
         let engine = crate::boolean::default_engine()?;
-        let res = crate::boolean::combine(
-            &self.brep.to_polys(),
-            &other.brep.to_polys(),
-            op,
-            engine.as_ref(),
-        )?;
+        let mut theirs = other.brep.to_polys();
+        let mut base = self.clone();
+        let mut fresh = BTreeMap::new();
+        let mut next = self.next_face_id;
+        for f in &mut theirs.faces {
+            if let Some(id) = f.id {
+                fresh.insert(id, next);
+                f.id = Some(next);
+                next += 1;
+            }
+        }
+        let key = |(a, b): (u64, u64)| {
+            let (a, b) = (*fresh.get(&a)?, *fresh.get(&b)?);
+            Some((a.min(b), a.max(b)))
+        };
+        for (&k, &flags) in &other.edge_flags {
+            if let Some(k) = key(k) {
+                base.edge_flags.insert(k, flags);
+            }
+        }
+        let mut curve = base.curves.keys().next_back().map_or(1, |k| k + 1);
+        for c in other.curves.values() {
+            if let Some(keys) = c.keys.iter().map(|&k| key(k)).collect() {
+                base.curves
+                    .insert(curve, crate::curve::RimCurve { keys, ..c.clone() });
+                curve += 1;
+            }
+        }
+        if op == BoolOp::Union {
+            for (id, new) in &fresh {
+                let mut p = other.paint.get(id).cloned().unwrap_or_default();
+                if p.material.is_none() && other.material != self.material {
+                    p.material = other.material.clone();
+                }
+                if !p.is_default() {
+                    base.paint.insert(*new, p);
+                }
+            }
+        }
+        let res = crate::boolean::combine(&self.brep.to_polys(), &theirs, op, engine.as_ref())?;
         let Some(p) = res else { return Ok(None) };
-        let o = self
+        let o = base
             .rebuilt(p)
             .map_err(|e| BooleanError::InvalidResult(e.to_string()))?;
         o.validate()

@@ -476,6 +476,68 @@ fn a_circle_lifted_off_its_plane_is_a_circle_there() {
 }
 
 #[test]
+fn a_round_wall_moves_sideways_freely_and_folds_when_asked_to_go_up() {
+    let up = DVec3::new(0.01, 0.0, 0.02);
+    let side = DVec3::new(0.02, 0.01, 0.0);
+    let cylinder = || {
+        let mut d = Document::with_ground_sketch();
+        let OpOutcome::Drawn {
+            inside: Some(region),
+            ..
+        } = ok(&mut d, circle([0.0, 0.0], 0.3, 24))
+        else {
+            panic!()
+        };
+        let OpOutcome::ObjectCreated { object } = ok(
+            &mut d,
+            Op::Extrude {
+                sketch: 1,
+                region,
+                distance: 0.5,
+            },
+        ) else {
+            panic!()
+        };
+        (d, object)
+    };
+    let walls = {
+        let (d, object) = cylinder();
+        let b = d.model().object(object).unwrap().brep();
+        b.faces()
+            .filter(|(_, f)| f.plane.normal.z.abs() < 0.5)
+            .count()
+    };
+    assert_eq!(walls, 24);
+    for k in 0..walls {
+        let attempt = |delta: DVec3, autofold: bool| {
+            let (mut d, object) = cylinder();
+            let b = d.model().object(object).unwrap().brep();
+            let (_, wall) = b
+                .faces()
+                .filter(|(_, f)| f.plane.normal.z.abs() < 0.5)
+                .nth(k)
+                .unwrap();
+            let points = b
+                .loop_points(wall.outer)
+                .iter()
+                .map(|p| p.to_array())
+                .collect();
+            d.apply(&Op::TransformGeometry {
+                object,
+                points,
+                xform: Xform::translation(delta),
+                autofold,
+            })
+        };
+        assert!(attempt(side, false).is_ok(), "wall {k} sideways");
+        // Rising takes the wall's edges out of the flat ends, which must then fold.
+        let refused = attempt(up, false).unwrap_err().to_string();
+        assert!(refused.contains("bend a face"), "{refused}");
+        assert!(attempt(up, true).is_ok(), "wall {k} folded");
+    }
+}
+
+#[test]
 fn a_pushed_circle_has_rims_and_soft_walls() {
     let mut d = Document::with_ground_sketch();
     let out = ok(&mut d, circle([0.0, 0.0], 0.3, 24));

@@ -293,6 +293,8 @@ export class MoveTool extends Tool {
       if (o.kind === "geometry_moved") return `Moved ${what} ${how}${o.faces.length ? ` (${o.faces.length} faces changed)` : ""}.`;
       return `Moved ${what} ${how}.`;
     });
+    // Only Move can fold, so the way out is said here and not in the kernel's refusal.
+    if (!r && h.lastError()?.includes("bend a face")) h.status(`${h.lastError()}. Tap Alt to let it fold, then move again.`, true);
     if (r) {
       this.last = { subject, delta, copy: copy && subject.kind === "objects", count, sel, sk };
       h.showValue(h.fmt(len(delta)));

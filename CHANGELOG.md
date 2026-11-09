@@ -9,18 +9,23 @@ All notable changes to Sawhorse are recorded here. The format follows [Keep a Ch
 - **Deleting a round solid no longer leaves its outline on screen.** The outline had nothing behind it, so nothing could select it.
 - **Select All takes loose lines too**, such as a stray line that lay under a solid, so Select All then Delete empties the model.
 - **Edits no longer move the camera.** A shape that outgrew the framed area used to refit the view, abruptly. Open and Import still frame what they bring in, and Zoom Extents does it on request.
+- **Move's refusal now says how to let faces fold:** tap Alt (Option) in Move, then move again. It used to say to hold Alt, which did nothing. Tapping Alt also works under the Maya camera style now.
 - **Switching tools no longer flashes the snap marker at the tool's last position.**
 
 ### Changed (feedback log, macOS fork, 2026-11-08)
 
 - **Tape keeps a measurement on screen** with its length until the next click, Esc or another tool.
 - **Guides show faintly through the model** where a solid covers them.
+- **The status bar keeps one height**, showing up to two lines, so a long message no longer shrinks the view. Hover it to read a message cut short.
+- **The tool rail is about 20% smaller**, icons and labels included.
 - **A texture's grain now runs one way across a whole solid.** It used to be chosen face by face from each face's own proportions, so faces of one block could disagree. It follows the solid's longest direction and wraps around the corners from its largest side. A face that looks straight down the grain, such as a board's end, cannot follow it, so it continues the lines of the largest side. A face that was positioned by hand stays exactly where it was put.
 - **Orbiting turns a set angle per pixel**, whatever the window's size.
 - **Orbits and pans no longer latch onto ground far beyond the model.** Near the horizon that swung the view wildly; they now use the centre of the view there.
 
 ### Added (feedback log, macOS fork, 2026-11-08)
 
+- **Cut one part with another, or add parts into one.** The new Joint tool cuts each part you click with the part you picked first, and the cutter stays, so a tenon cuts its own mortise. Ctrl+click (Cmd on a Mac) adds parts into one instead; Edit > Add Parts Together does the same for a selection. A cut aimed at one copy of a component changes only that copy.
+- **View > Scene Stats and View > Snap Legend** hide the text over the 3D view, remembered on this device.
 - **Tape from an edge's midpoint lays out a guide square to the edge**, through that point. Tap Cmd (Ctrl elsewhere) to measure from the midpoint instead.
 - **Texture Scale, Keep proportions and Offset in the Materials pane.** A percentage field and slider scale a material's texture in proportion, width and height can be unlinked, and the texture can be slid with typed offsets.
 - **A Maya camera style (Edit > Settings…).** Option (Alt) with the left, middle or right button tumbles, tracks and dollies, Shift holds a drag to one axis, and orbits turn about the centre of the view. An Option+click without a drag still reaches the tool.

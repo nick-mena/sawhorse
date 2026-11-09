@@ -107,7 +107,8 @@ test("Soften selected in the Styles pane rounds a 24-sided cylinder; soft edges 
 test("a softened cylinder renders like its golden image", async ({ page }) => {
   test.setTimeout(90_000);
   test.skip(!existsSync(path.join("src", "wasm", "pkg", "sawhorse_wasm.js")), "kernel WASM not built");
-  await page.setViewportSize({ width: 1000, height: 720 });
+  // The size that gives the golden's 644 x 637 canvas under the current rail and status bar.
+  await page.setViewportSize({ width: 989, height: 726 });
   await goldenPanelWidth(page);
   await page.goto("/?io=basic&theme=light&autosave=0");
   await expect(page.locator("main.vp")).toHaveAttribute("data-kernel", "ready", { timeout: 15_000 });

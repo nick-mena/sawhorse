@@ -422,7 +422,7 @@ impl Model {
         }
     }
 
-    fn membership(&self, t: Thing) -> Option<&Membership> {
+    pub(crate) fn membership(&self, t: Thing) -> Option<&Membership> {
         match t {
             Thing::Node(n) => self.nodes.get(n).map(|x| &x.member),
             Thing::Object(k) => self.objects.get(k).map(|x| &x.member),
@@ -1187,7 +1187,7 @@ impl Model {
     }
 
     /// Give instance `i` its own copy of its definition. Returns the new definition.
-    fn fork(&mut self, i: NodeId) -> DefId {
+    pub(crate) fn fork(&mut self, i: NodeId) -> DefId {
         let NodeKind::Instance(d) = self.nodes[i].kind else {
             unreachable!("fork of a group")
         };

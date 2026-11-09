@@ -234,6 +234,14 @@ Paths with arcs come later.
 
 **The Outliner** (right panel) is the model's tree: groups, component instances ("component · 2 of 4") and solids, folded except around the group you have open (marked "editing"). Click a row to select it (Shift adds, Ctrl toggles); selecting something inside a closed group opens what holds it. The eye hides and shows, the padlock locks (a locked group cannot be opened, moved, exploded or deleted). Double-click a name to rename it; renaming a component renames it everywhere. Right-click for Edit inside, Make Group, Make Component, Make Unique, Explode, Hide, Lock, Rename and Delete.
 
+## Joints: cutting one part with another
+
+The **Joint** tool cuts a part with the shape of another. Model the tenon, move it to where it belongs in the leg so the two overlap, then pick Joint, click the tenon, and click the leg. The mortise is cut and the tenon stays where it is, selected, so you can click another part to cut it too. Press Delete if the cutter was only there to make the hole.
+
+Ctrl+click adds into a part instead of cutting it, and **Edit > Add Parts Together** does the same for two or more selected parts; they must overlap or rest flat against each other. The result keeps the name and place of the part you clicked (in Edit > Add Parts Together, the one selected first), and each side keeps its own paint.
+
+A cut that goes all the way across leaves separate parts. Clicking a component cuts only that copy, which becomes its own component. To change every copy, open the component and cut inside it, with a cutter that is inside it too. Each is one undo step.
+
 ## Tags
 
 Tags control what you see, nothing else: geometry stays where it is and in its group. The Tags pane lists **Untagged** first (everything starts there), then your tags with their colour and how many things are on each. **New tag** adds one and lets you type its name. Select solids, groups or components and click a tag's label button to put them on it (Untagged's takes them off). The eye shows or hides everything on the tag, including what is inside a tagged group. Click the swatch to change the colour, double-click the name to rename (scenes follow), the bin deletes the tag (what was on it becomes untagged).
@@ -457,7 +465,7 @@ A push, or a Follow Me cut, that cuts a board in two leaves two solids. The piec
 
 **Edit > Units** sets the units lengths are typed and shown in (see [Units](#the-first-ten-minutes) under The first ten minutes); the unit chip beside the Value Control Box opens the same picker.
 
-**Edit > Settings…** holds three settings. **Camera style** switches to Maya's controls: Option (Alt) with the left button tumbles, with the middle button tracks and with the right button dollies, Shift holds the drag to one axis, and every orbit turns about the middle of the view. Option no longer toggles autofold in Move under this style. On a Mac, **Trackpad orbit speed** sets how far a two-finger swipe turns the model, from 10% to 150% of a mouse drag of the same distance; it starts at 50% and is saved on this device. The other is the **render service**. Renders (and the Credits chip and the Render pane) are not part of this alpha: they appear only when a render service address is saved here and that service answers when the app starts. Without one, the line under the field says "Renders are off" and nothing about credits is shown. Nothing else in Sawhorse needs a network or an account.
+**Edit > Settings…** holds three settings. **Camera style** switches to Maya's controls: Option (Alt) with the left button tumbles, with the middle button tracks and with the right button dollies, Shift holds the drag to one axis, and every orbit turns about the middle of the view. On a Mac, **Trackpad orbit speed** sets how far a two-finger swipe turns the model, from 10% to 150% of a mouse drag of the same distance; it starts at 50% and is saved on this device. The other is the **render service**. Renders (and the Credits chip and the Render pane) are not part of this alpha: they appear only when a render service address is saved here and that service answers when the app starts. Without one, the line under the field says "Renders are off" and nothing about credits is shown. Nothing else in Sawhorse needs a network or an account.
 
 ## Known limits
 

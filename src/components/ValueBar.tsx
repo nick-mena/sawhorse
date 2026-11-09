@@ -66,7 +66,7 @@ export const ValueBar = forwardRef<HTMLInputElement, ValueBarProps>(function Val
   const unitsLine = empty && !message;
   return (
     <footer className="vcb">
-      <div className={message?.error ? "hint err" : "hint"} id="hint" role="status" aria-live="polite">
+      <div className={message?.error ? "hint err" : "hint"} id="hint" role="status" aria-live="polite" title={platformText(message ? message.text : tool.hint)}>
         <b>{message?.error ? "Can't do that." : `${tool.label}.`}</b> {platformText(message ? message.text : tool.hint)}
         {message?.actions?.map((a) => (
           <button key={a.label} type="button" className="hint-action" onClick={a.run}>

@@ -63,7 +63,7 @@ export function SettingsDialog({ url, status, onUrl, onRecheck, onClose }: Setti
       </label>
       <p className="note">
         {style === "maya"
-          ? `${isMac() ? "Option" : "Alt"} with the left, middle or right button tumbles, tracks and dollies; add Shift to hold to one axis. Orbits turn about the centre of the view. ${isMac() ? "Option" : "Alt"} no longer toggles autofold in Move.`
+          ? `${isMac() ? "Option" : "Alt"} with the left, middle or right button tumbles, tracks and dollies; add Shift to hold to one axis. Orbits turn about the centre of the view.`
           : "Orbits, pans and zooms act on the point under the cursor."}
       </p>
       {swipeOrbits() ? (

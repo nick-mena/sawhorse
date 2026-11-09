@@ -307,6 +307,13 @@ pub enum Op {
         items: Vec<Item>,
         name: String,
     },
+    /// Add parts into one, or cut a part with others (see [`crate::parts`]). `with` is
+    /// consumed by an add and left alone by a cut.
+    CombineParts {
+        target: Item,
+        with: Vec<Item>,
+        how: crate::parts::PartsOp,
+    },
     /// Give one instance its own copy of its definition.
     MakeUnique {
         node: u64,
@@ -1037,6 +1044,12 @@ pub enum OpOutcome {
     /// first id is the original solid (the piece holding its smallest face id).
     Severed {
         objects: Vec<u64>,
+    },
+    /// Parts were added or cut. `objects`: the solids that changed, every piece of a part
+    /// that came apart included. `unique`: a shared component got its own definition first.
+    PartsCombined {
+        objects: Vec<u64>,
+        unique: bool,
     },
     /// A file was imported: the solids, non-solid meshes, groups and sketches it made, and
     /// plain-language notes (what was healed, what stayed a mesh and why, what was skipped).
@@ -2230,6 +2243,7 @@ impl Model {
             Op::MakeGroup { items, name } => self.make_group(items, name.as_deref()),
             Op::MakeComponent { items, name } => self.make_component(items, name),
             Op::MakeUnique { node } => self.make_unique(*node),
+            Op::CombineParts { target, with, how } => self.combine_parts(*target, with, *how),
             Op::Explode { node } => self.explode(*node),
             Op::DeleteNode { node } => self.delete_node(*node),
             Op::Rename { item, name } => self.rename(*item, name.as_deref()),
@@ -3077,7 +3091,7 @@ impl Model {
     /// Split an object that has come apart into one object per piece (see
     /// [`crate::sever`]). Returns every piece's key, the original first; the new pieces join
     /// the original's groups.
-    fn sever(&mut self, oid: ObjectId) -> Vec<ObjectId> {
+    pub(crate) fn sever(&mut self, oid: ObjectId) -> Vec<ObjectId> {
         let Some(pieces) = self.objects[oid].split_shells() else {
             return vec![oid];
         };

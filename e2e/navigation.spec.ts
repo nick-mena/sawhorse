@@ -222,6 +222,39 @@ test("the ground grid follows the units, and sketch regions draw over it", async
   await expect.poll(worst).toBeLessThanOrEqual(3);
 });
 
+test("a long status message leaves the view its size, and the view's text can be hidden", async ({ page }) => {
+  await ready(page);
+  const height = () => page.locator("main.vp").evaluate((el) => el.getBoundingClientRect().height);
+  const before = await height();
+  await page.locator("#hint").evaluate((el) => (el.textContent = "A very long status message that runs on. ".repeat(40)));
+  expect(await height()).toBe(before);
+  await page.getByRole("button", { name: "View", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Scene Stats" }).click();
+  await expect(page.locator(".vp .hud span")).toHaveCount(0);
+  await page.getByRole("button", { name: "View", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Snap Legend" }).click();
+  await expect(page.locator(".legend")).toHaveCount(0);
+  await page.reload();
+  await ready(page);
+  await expect(page.locator(".legend")).toHaveCount(0);
+});
+
+test("under the Maya style a tap of Alt still toggles autofold, and an Alt drag does not", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("sawhorse.navStyle", "maya"));
+  await ready(page);
+  await page.keyboard.press("m");
+  await page.keyboard.press("Alt");
+  await expect(page.locator("#hint")).toContainText("Autofold on");
+  const box = (await page.locator("#cv").boundingBox())!;
+  await page.keyboard.down("Alt");
+  await page.mouse.move(box.x + 300, box.y + 300);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 340, box.y + 320, { steps: 3 });
+  await page.mouse.up();
+  await page.keyboard.up("Alt");
+  await expect(page.locator("#hint")).not.toContainText("Autofold off");
+});
+
 test("an edit never moves the camera, however large it is", async ({ page }) => {
   const vp = await ready(page);
   const before = await cam(page);

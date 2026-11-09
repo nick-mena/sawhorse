@@ -18,8 +18,8 @@ interface Part {
 test("shell matches the approved mock's structure", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".app > header.top")).toBeVisible();
-  // The mock's fifteen tools plus Section (lane 12) at the end of the rail.
-  await expect(page.locator(".tool")).toHaveCount(16);
+  // The mock's fifteen tools, Joint, and Section (lane 12) at the end of the rail.
+  await expect(page.locator(".tool")).toHaveCount(17);
   await expect(page.locator(".tool").last()).toHaveAttribute("data-tool", "section");
   // The mock's tabs, plus Materials and Styles (lane 10) and the Plugins glyph tab (lane 11).
   // Render (and the Credits chip) only with a render service set and answering (lane 15):

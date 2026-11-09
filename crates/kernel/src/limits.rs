@@ -69,6 +69,9 @@ pub const MAX_TAGS: usize = 10_000;
 pub const MAX_MATERIALS: usize = 4_096;
 /// Saved scenes (views) in one model: each is a tab with its own camera, style and hidden tags.
 pub const MAX_SCENES: usize = 1_000;
+/// Solids one Add or Cut may take in: each is a full boolean, and Select All would otherwise
+/// hold the kernel for minutes.
+pub const MAX_PARTS_COMBINED: usize = 256;
 /// Section planes in one model: each active one adds a clipping set to every material it reaches.
 pub const MAX_SECTIONS: usize = 1_000;
 /// Drawing sheets in one model, and items on one sheet (each item a drawing of the model):

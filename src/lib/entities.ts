@@ -1,7 +1,7 @@
 // Entities the user points at (faces, edges, vertices, regions, whole objects): identity,
 // selection sets, highlights, window / crossing selection and the ops that erase them.
 // Pure (no DOM, no three.js), so all of it is unit-tested.
-import type { DocState, Entity, KernelOp, MeshData, SceneGraph, SketchInfo, V3 } from "../kernel/types";
+import type { DocState, Entity, Item, KernelOp, MeshData, SceneGraph, SketchInfo, V3 } from "../kernel/types";
 import type { Highlight } from "../viewport/engine";
 import { curveSegments } from "./curves";
 import { meshIndex } from "./meshIndex";
@@ -567,4 +567,32 @@ export function looseStrokes(mesh: MeshData): Entity[] {
 export function edgeFlagWords(flags: number | undefined): string {
   const w = [flags && flags & 1 ? "soft" : "", flags && flags & 2 ? "smooth" : "", flags && flags & 4 ? "hidden" : ""].filter(Boolean);
   return w.length <= 1 ? (w[0] ?? "") : `${w.slice(0, -1).join(", ")} and ${w[w.length - 1]}`;
+}
+
+/** The solids, groups and components a selection stands for (a face or edge stands for its
+ * solid), each once, in selection order. */
+export function itemsOf(es: Entity[]): Item[] {
+  const out: Item[] = [];
+  // Lane 16b: numbers, not a JSON string per entity (a select-all of 100,000 solids made
+  // 100,000 strings each time the menus were drawn).
+  const nodes = new Set<number>();
+  const objects = new Set<number>();
+  const node = (n: number) => {
+    if (!nodes.has(n)) {
+      nodes.add(n);
+      out.push({ node: n });
+    }
+  };
+  const object = (o: number) => {
+    if (!objects.has(o)) {
+      objects.add(o);
+      out.push({ object: o });
+    }
+  };
+  for (const e of es) {
+    if (e.kind === "node") node(e.node);
+    else if (e.kind === "object" || e.kind === "face") object(e.object);
+    else if ((e.kind === "edge" || e.kind === "vertex") && e.owner.kind === "object") object(e.owner.id);
+  }
+  return out;
 }

@@ -74,7 +74,7 @@ test("turn the top face about its front edge into a wedge; a twist is refused", 
   await point(page, [12, 6, 6]);
   await type(page, "10");
   const hint = page.locator("#hint");
-  await expect(hint).toContainText("would bend face");
+  await expect(hint).toContainText("would bend a face");
   // About the front edge (the protractor upright, facing red): a wedge.
   await page.keyboard.press("ArrowRight");
   await expect(hint).toContainText("Protractor locked upright, facing red");

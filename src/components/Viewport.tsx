@@ -47,6 +47,8 @@ export interface SelectionBox {
 }
 
 export interface ViewportProps {
+  /** The snap colours and axis names along the bottom of the view (View menu). */
+  showLegend?: boolean;
   mesh: MeshData | null;
   units: UnitSystem;
   /** Requested standard view; `viewSeq` changes re-apply it even when the id repeats. */
@@ -111,7 +113,7 @@ export interface SawhorseHooks {
 const ALT_CLICK_PX = 4;
 
 export function Viewport(props: ViewportProps) {
-  const { mesh, units, view, viewSeq, projection, fitSeq, hud, kernel, info, highlight, overlay, marker, labels, box, cursor, selectionCount, hoverKind, onPointer, onCamera, onEngine } = props;
+  const { showLegend = true, mesh, units, view, viewSeq, projection, fitSeq, hud, kernel, info, highlight, overlay, marker, labels, box, cursor, selectionCount, hoverKind, onPointer, onCamera, onEngine } = props;
   const hostRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<ViewportEngine | null>(null);
@@ -343,15 +345,19 @@ export function Viewport(props: ViewportProps) {
           </div>
         </>
       ) : null}
-      <div className="legend">
-        {LEGEND_KINDS.map((k) => INFERENCE_STYLES[k]).map((s) => (
-          <span key={s.token}>
-            <i style={{ background: `var(${s.token})` }}></i>
-            {s.label}
-          </span>
-        ))}
-      </div>
-      <div className="axes">x ─ red · y ─ green · z ─ blue</div>
+      {showLegend ? (
+        <>
+          <div className="legend">
+            {LEGEND_KINDS.map((k) => INFERENCE_STYLES[k]).map((s) => (
+              <span key={s.token}>
+                <i style={{ background: `var(${s.token})` }}></i>
+                {s.label}
+              </span>
+            ))}
+          </div>
+          <div className="axes">x ─ red · y ─ green · z ─ blue</div>
+        </>
+      ) : null}
     </main>
   );
 }

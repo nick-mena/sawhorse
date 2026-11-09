@@ -4,7 +4,7 @@
 export type BuiltinToolId =
   | "select" | "erase"
   | "line" | "rect" | "circle" | "arc"
-  | "pushpull" | "move" | "rotate" | "scale" | "offset" | "follow"
+  | "pushpull" | "move" | "rotate" | "scale" | "offset" | "follow" | "joint"
   | "tape" | "dim" | "paint"
   | "section";
 
@@ -48,6 +48,8 @@ export const TOOL_GROUPS: ToolDef[][] = [
     { id: "scale", label: "Scale", key: "s", keyCap: "S", hint: "Drag a grip. Type 2 for 2x, or 48in for an absolute size.", vcb: "Scale" },
     { id: "offset", label: "Offset", key: "f", keyCap: "F", hint: "Click a face, move inward or outward. Type 3/4.", vcb: "Distance" },
     { id: "follow", label: "Follow", key: "w", keyCap: "W", hint: "Select a path, then click a profile face to extrude it along the path.", vcb: null },
+    // No default key: it is used far less often than the tools around it.
+    { id: "joint", label: "Joint", key: "", keyCap: "", hint: "Click the part that does the cutting, then each part to cut. The cutter stays. Ctrl+click adds into a part instead.", vcb: null },
   ],
   [
     { id: "tape", label: "Tape", key: "t", keyCap: "T", hint: "Click two points to measure. Click an edge and move for a guide.", vcb: "Length" },

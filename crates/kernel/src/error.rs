@@ -158,7 +158,7 @@ pub enum TransformError {
     )]
     LeavesSketchPlane,
     /// Moving part of a solid would bend a face out of its plane (autofold is off).
-    #[error("that would bend face #{face} out of its plane (hold Alt to fold it)")]
+    #[error("that would bend a face beside it out of its plane")]
     WouldBend { face: u64 },
     #[error("that would make the solid pass through itself")]
     SelfIntersects,
@@ -250,6 +250,27 @@ pub enum DocumentError {
     /// Lane 15: soft, smooth and hidden edges.
     #[error("{0}")]
     EdgeFlags(String),
+}
+
+/// Refusals from adding parts together and cutting one with another. Nothing changed.
+#[derive(Debug, Clone, PartialEq, thiserror::Error)]
+pub enum PartsError {
+    #[error("only solid parts can be added or cut, and that is not a solid")]
+    NotASolid,
+    #[error("that group has groups inside it: open it and pick the part inside")]
+    NestedGroups,
+    #[error("that group holds more than one solid: open it and pick the part to add to")]
+    SeveralSolids,
+    #[error("a part cannot be added to or cut by itself")]
+    SamePart,
+    #[error("those parts do not overlap, so there is nothing to cut")]
+    NoOverlap,
+    #[error("those parts do not touch: move them together first so they can become one part")]
+    NotTouching,
+    #[error("the cutter covers the whole part, so cutting it would leave nothing")]
+    RemovesEverything,
+    #[error("that could not be worked out cleanly, so nothing changed ({0})")]
+    Failed(String),
 }
 
 /// Errors from groups, components, the editing context, tags and scenes (lane 5). Nothing
@@ -379,6 +400,8 @@ pub enum KernelError {
     Boolean(#[from] BooleanError),
     #[error(transparent)]
     Structure(#[from] StructureError),
+    #[error(transparent)]
+    Parts(#[from] PartsError),
     #[error(transparent)]
     Stock(#[from] StockError),
     #[error(transparent)]

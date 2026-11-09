@@ -8,6 +8,7 @@ import { toolCursor } from "./components/toolCursor";
 import { stampLabels } from "./nesting/stamps";
 import { isMac } from "./lib/keys";
 import { navStyle } from "./lib/navPrefs";
+import { setViewInfoShown, viewInfoShown, type ViewInfo } from "./lib/viewPrefs";
 import { Viewport, type KernelState, type ViewportPointer } from "./components/Viewport";
 import { SidePanel, type PaneId } from "./components/SidePanel";
 import { CutListReport } from "./components/CutListReport";
@@ -54,6 +55,8 @@ import { RotateTool } from "./tools/rotate";
 import { ScaleTool } from "./tools/scale";
 import { OffsetTool } from "./tools/offset";
 import { FollowTool } from "./tools/follow";
+import { JointTool } from "./tools/joint";
+import { itemsOf } from "./lib/entities";
 import { LineTool } from "./tools/line";
 import { CircleTool } from "./tools/circle";
 import { ArcTool } from "./tools/arc";
@@ -91,33 +94,7 @@ import type { AppBridge } from "./plugins/manager";
 import { SectionTool } from "./tools/section";
 import { activeSectionHere, describeSection, sceneSectionsOf, sectionById, sliceExportRefused } from "./lib/sections";
 
-/** The solids, groups and components a selection stands for (a face or edge stands for its
- * solid), each once, in selection order. */
-export function itemsOf(es: Entity[]): Item[] {
-  const out: Item[] = [];
-  // Lane 16b: numbers, not a JSON string per entity (a select-all of 100,000 solids made
-  // 100,000 strings each time the menus were drawn).
-  const nodes = new Set<number>();
-  const objects = new Set<number>();
-  const node = (n: number) => {
-    if (!nodes.has(n)) {
-      nodes.add(n);
-      out.push({ node: n });
-    }
-  };
-  const object = (o: number) => {
-    if (!objects.has(o)) {
-      objects.add(o);
-      out.push({ object: o });
-    }
-  };
-  for (const e of es) {
-    if (e.kind === "node") node(e.node);
-    else if (e.kind === "object" || e.kind === "face") object(e.object);
-    else if ((e.kind === "edge" || e.kind === "vertex") && e.owner.kind === "object") object(e.owner.id);
-  }
-  return out;
-}
+export { itemsOf };
 
 /** A name not in `taken`: "Scene 1", "Scene 2"... */
 export function nextName(stem: string, taken: string[]): string {
@@ -1263,6 +1240,7 @@ export function App() {
       ["scale", new ScaleTool(host)],
       ["offset", new OffsetTool(host)],
       ["follow", new FollowTool(host)],
+      ["joint", new JointTool(host)],
       ["paint", new PaintTool(host, paintCtx)],
       ["section", new SectionTool(host)],
     ]);
@@ -1342,6 +1320,9 @@ export function App() {
   const plugins = usePlugins({ bridge: pluginBridge, toolHost: host, scene, selection, toolId, units, showPane: showPlugins });
   pluginsRef.current = plugins;
 
+  const [showStats, setShowStats] = useState(() => viewInfoShown("stats"));
+  const [showLegend, setShowLegend] = useState(() => viewInfoShown("legend"));
+  const altTap = useRef(false);
   const onPointer = useCallback((p: ViewportPointer) => {
     if (!activeRef.current) {
       if (p.type === "up" && p.button === 0) setMessage({ text: `${toolById(toolIdRef.current).label} arrives in a later lane.`, error: false });
@@ -1638,6 +1619,18 @@ export function App() {
     live.current.selection = es;
     setSelection(es);
   }, []);
+
+  /** Edit > Add Parts Together: the first selected keeps its name and place. */
+  const addParts = useCallback(
+    async (items: Item[]) => {
+      if (items.length < 2) return void setMessage({ text: "Select at least two parts to add together.", error: true });
+      if (!(await inContext(parentOfItem(items[0])))) return;
+      const [target, ...others] = items;
+      const r = await apply({ op: "combine_parts", target, with: others, how: "add" }, () => `Added ${plural(items.length, "part")} into one.`);
+      if (r) select(["node" in target ? { kind: "node", node: target.node } : { kind: "object", object: target.object }]);
+    },
+    [apply, inContext, parentOfItem, select],
+  );
 
   /** Make Group from the selection (Ctrl+G). */
   const makeGroup = useCallback(
@@ -2340,8 +2333,12 @@ export function App() {
         // A tap of Ctrl (Cmd on a Mac) or Alt alone (Move / Rotate copy, Move autofold). Alt
         // must not focus the browser's menu bar.
         if (e.key === "Alt") e.preventDefault();
-        // Under the Maya style Alt is how a drag reaches the camera, not a tool's toggle.
-        if (e.key === "Alt" && navStyle() === "maya") return;
+        // Under the Maya style Alt starts camera drags, so it is a tool's toggle only if it
+        // comes back up with no press in between (the keyup handler).
+        if (e.key === "Alt" && navStyle() === "maya") {
+          altTap.current = true;
+          return;
+        }
         // After any click or tool key still on its way: the tap belongs to the tool that is
         // active by then ("s" then Ctrl scales about the centre).
         const mod = e.key === "Alt" ? "alt" : "ctrl";
@@ -2428,12 +2425,22 @@ export function App() {
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === "Shift") activeRef.current?.onShift(false);
+      if (e.key === "Alt" && altTap.current) {
+        altTap.current = false;
+        void afterPointer(() => activeRef.current?.onModifier("alt"));
+      }
+    };
+    // A press while Alt is down makes it a camera drag or an Alt+click, not a tap.
+    const onAnyPress = () => {
+      altTap.current = false;
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onKeyUp);
+    window.addEventListener("pointerdown", onAnyPress, true);
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKeyUp);
+      window.removeEventListener("pointerdown", onAnyPress, true);
     };
   }, [selectTool, undo, redo, zoomExtents, eraseSelection, selectAll, afterPointer, save, openDialog, importDialog, makeGroup, explode]);
 
@@ -2448,6 +2455,10 @@ export function App() {
   const [unitPickerOpen, setUnitPickerOpen] = useState(0);
 
   const st = scene?.state;
+  const toggleViewInfo = (which: ViewInfo, shown: boolean, set: (v: boolean) => void) => {
+    setViewInfoShown(which, !shown);
+    set(!shown);
+  };
   const hud: { text: string; tone?: "ok" | "err" }[] = [];
   if (kernelState === "ready" && st) {
     const s = st.stats;
@@ -2603,6 +2614,8 @@ export function App() {
           onSelect: () => selection[0]?.kind === "node" && void apply({ op: "make_unique", node: selection[0].node }, () => "Made unique: this copy has its own definition now."),
         },
         { label: "Explode", keys: menuKeys("explode"), disabled: !selection.some((x) => x.kind === "node"), onSelect: () => void explode(selection.flatMap((x) => (x.kind === "node" ? [x.node] : []))) },
+        { label: "Add Parts Together", title: "The selected parts become one part, the first one selected; they must overlap or rest against each other", disabled: selItems.length < 2, onSelect: () => void addParts(selItems) },
+        { label: "Cut With Selection…", title: "The selected parts stay put and cut each part you click next, the way a tenon marks its mortise", disabled: !selItems.length, onSelect: () => selectTool("joint") },
         {
           label: "Explode Curve",
           title: "The selected circles, arcs, polygons and curves become plain edges, each segment its own again; one undo step",
@@ -2661,6 +2674,8 @@ export function App() {
         "-",
         { label: "Zoom Extents", keys: menuKeys("zoomExtents"), onSelect: zoomExtents },
         "-",
+        { label: "Scene Stats", checked: showStats, title: "Show or hide the counts and notes at the top of the view", onSelect: () => toggleViewInfo("stats", showStats, setShowStats) },
+        { label: "Snap Legend", checked: showLegend, title: "Show or hide the snap colours and axis names at the bottom of the view", onSelect: () => toggleViewInfo("legend", showLegend, setShowLegend) },
         { label: "Perspective", checked: projection === "perspective", onSelect: () => setProjection((p) => (p === "perspective" ? "parallel" : "perspective")) },
         { label: "Grid", checked: gridShown(st?.style), title: "Show or hide the ground grid (saved with the document and with each scene)", onSelect: () => setGrid(!gridShown(st?.style)) },
         "-",
@@ -2701,7 +2716,7 @@ export function App() {
       ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
+    [shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, addParts, selectTool, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
   );
 
   const valueLabel = active?.valueLabel() ?? null;
@@ -2838,7 +2853,8 @@ export function App() {
         viewSeq={viewSeq}
         projection={projection}
         fitSeq={fitSeq}
-        hud={hud}
+        hud={showStats || kernelState !== "ready" ? hud : []}
+        showLegend={showLegend}
         kernel={kernelState}
         info={st ? { hash: st.stats.hash, watertight: st.stats.watertight, objects: st.stats.objects, canUndo: st.can_undo, canRedo: st.can_redo, volume: st.stats.volume_m3 } : undefined}
         highlight={highlight}
