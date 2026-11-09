@@ -10,6 +10,8 @@ import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, use
 import type { CutList, CutRow, Grain, Rounding } from "../kernel/types";
 import { BOARD_FEET_NOTE, formatSteps, geometryNote, listStyle, materialText, nominalText, rowNotes, ROUNDINGS, scopeNote, sizeUnit, summary, UNCOUNTED_NOTES, type RoundingChoice } from "../cutlist/format";
 import { nameRuns, sizeChars, sizePieces } from "../cutlist/wrap";
+import { platformText } from "../lib/keys";
+import { useDialogFocus } from "./useDialogFocus";
 
 export interface CutListPaneProps {
   list: CutList | null;
@@ -469,7 +471,7 @@ export function CutListPane(p: CutListPaneProps) {
                         onMouseDown={(e) => e.shiftKey && e.preventDefault()}
                         onClick={(e) => clickRow(e, row)}
                         onContextMenu={(e) => openMenu(e, row)}
-                        title="Click to select its pieces in the model (Shift: a range of rows, Ctrl: one more). Right-click to set the grain or the stock of the picked rows."
+                        title={platformText("Click to select its pieces in the model (Shift: a range of rows, Ctrl: one more). Right-click to set the grain or the stock of the picked rows.")}
                       >
                         <td role="cell" className="part" title={notes.length ? `${row.name} (${[why, ...notes.filter((x) => x !== "not counted")].filter(Boolean).join(", ")})` : row.name}>
                           {p.onInclude ? (
@@ -483,6 +485,9 @@ export function CutListPane(p: CutListPaneProps) {
                               onChange={(e) => p.onInclude?.([row], e.currentTarget.checked)}
                             />
                           ) : null}
+                          <span className="stamp" data-testid="part-stamp" title="This part's mark on the cutting diagrams and labels">
+                            {(list?.rows.indexOf(row) ?? 0) + 1}
+                          </span>
                           <span className="name">
                             <Wrapped text={row.name} />
                           </span>
@@ -663,6 +668,7 @@ export function CutListPane(p: CutListPaneProps) {
 
 function StockDialog({ rows, material, kind: initial, onClose, onOk }: { rows: CutRow[]; material: string | null; kind: "auto" | "lumber" | "sheet"; onClose: () => void; onOk: (stock: string | null, sheet: boolean | null) => void }) {
   const [v, setV] = useState(material ?? "");
+  const dialog = useDialogFocus();
   const [kind, setKind] = useState<"auto" | "lumber" | "sheet">(initial);
   const ok = () => {
     onClose();
@@ -671,7 +677,16 @@ function StockDialog({ rows, material, kind: initial, onClose, onOk }: { rows: C
   };
   const who = partsLabel(rows);
   return (
-    <section className="name-dialog" role="dialog" aria-label={`Stock for ${who}`}>
+    <section
+      ref={dialog}
+      className="name-dialog"
+      role="dialog"
+      aria-label={`Stock for ${who}`}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        if (e.key === "Escape") onClose();
+      }}
+    >
       <header>
         <b>Stock for {who}</b>
         {rows.length > 1 ? <small title={rows.map((r) => r.name).join(", ")}>{rows.map((r) => r.name).join(", ")}</small> : null}
@@ -686,9 +701,7 @@ function StockDialog({ rows, material, kind: initial, onClose, onOk }: { rows: C
           onFocus={(e) => e.currentTarget.select()}
           onChange={(e) => setV(e.currentTarget.value)}
           onKeyDown={(e) => {
-            e.stopPropagation();
             if (e.key === "Enter") ok();
-            if (e.key === "Escape") onClose();
           }}
         />
       </label>

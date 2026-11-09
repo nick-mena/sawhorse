@@ -145,11 +145,11 @@ describe("PDF writer", () => {
     expect(back.pages).toBe(1);
     const t = back.text[0];
     expect(t).toEqual([
-      "Side", "×2", "3/4 × 11 1/4 × 71 1/4 in", "Oak", "Grain along L",
-      "Shelf", "×4", "3/4 × 11 × 34 1/2 in", "Oak", "Grain along L",
-      "Top", "×1", "3/4 × 11 1/4 × 36 in", "Oak", "Grain across W",
-      "Toe kick", "×1", "3/4 × 3 1/2 × 34 1/2 in", "Oak", "Grain along L",
-      "Back panel", "×1", "1/4 × 34 1/2 × 71 1/4 in", "1/4 birch ply (sheet)", "Grain along L",
+      "1", "Side", "×2", "3/4 × 11 1/4 × 71 1/4 in", "Oak", "Grain along L",
+      "2", "Shelf", "×4", "3/4 × 11 × 34 1/2 in", "Oak", "Grain along L",
+      "3", "Top", "×1", "3/4 × 11 1/4 × 36 in", "Oak", "Grain across W",
+      "4", "Toe kick", "×1", "3/4 × 3 1/2 × 34 1/2 in", "Oak", "Grain along L",
+      "5", "Back panel", "×1", "1/4 × 34 1/2 × 71 1/4 in", "1/4 birch ply (sheet)", "Grain along L",
     ]);
   });
 });

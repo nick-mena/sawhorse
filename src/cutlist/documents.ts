@@ -135,14 +135,19 @@ export function labelSlot(k: number): { page: number; x: number; y: number } {
 export function labelsPdf(list: CutList, title: string, opts: { outlines?: boolean } = {}): Uint8Array {
   const doc = new PdfDoc({ title: `Labels: ${title}`, creator: "Sawhorse" });
   const { width: w, height: h } = LABEL_SHEET;
-  list.rows.filter((row) => row.included !== false).forEach((row, k) => {
+  // Numbered from the whole list, so a label's mark is the one on the diagrams.
+  const numbered = list.rows.map((row, i) => ({ row, mark: String(i + 1) }));
+  numbered.filter(({ row }) => row.included !== false).forEach(({ row, mark }, k) => {
     const slot = labelSlot(k);
     while (doc.pages.length <= slot.page) doc.page();
     const p = doc.pages[slot.page];
     const { x, y } = slot;
     if (opts.outlines) p.rect(x, y, w, h, { stroke: 0.8, width: 0.25 });
     const pad = 9;
-    p.text(x + pad, y + h - 17, fit(row.name, 11, w - 2 * pad - 34, true), 11, { bold: true });
+    const box = textWidth(mark, 10, true) + 6;
+    p.rect(x + pad, y + h - 20, box, 14, { stroke: 0, width: 0.8 });
+    p.text(x + pad + 3, y + h - 16.5, mark, 10, { bold: true });
+    p.text(x + pad + box + 5, y + h - 17, fit(row.name, 11, w - 2 * pad - 34 - box - 5, true), 11, { bold: true });
     p.text(x + w - pad, y + h - 17, `×${row.qty}`, 11, { bold: true, align: "right" });
     p.text(x + pad, y + h - 31, fit(formatSize(row, list.rounding, listStyle(list)), 9, w - 2 * pad), 9);
     p.text(x + pad, y + h - 44, fit(`${materialText(row)}${row.sheet ? " (sheet)" : ""}${row.not_solid ? ` · ${NOT_SOLID_NOTE}` : ""}`, 8, w - 2 * pad), 8, { gray: 0.25 });

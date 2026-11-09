@@ -1,10 +1,10 @@
 // The Nesting section of the Cut list pane (lane 9): the cut list's parts laid out on real
 // stock by the kernel. Saw (table-saw guillotine or the tightest maxrects layout), kerf and
-// trim, a Stock… button for the library; three tiles (sheets, boards, yield); anything no
+// trim, a Stock… button for the library; what to buy (sheets, boards, yield); anything no
 // stock takes, with why; then one diagram per sheet or board, drawn to scale, each part
 // labelled with its tag (hover: its name and size, and the part lights up in the model;
 // click: select it), the cuts in order underneath; and the SVG, DXF and PDF exports.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { NestAlgorithm, Nesting, NestSettings, Placement, StockPiece } from "../kernel/types";
 import { parseLength, type UnitSystem } from "../lib/units";
 import { diagram } from "../nesting/diagram";
@@ -85,6 +85,8 @@ function PieceDiagram({ piece, rounding, lit, onHover, onSelect }: { piece: Stoc
   // The diagram is drawn the pane's width, so a tag about 10 px tall is 1/25 of the
   // stock's length (then smaller where a part is too small for it).
   const font = d.width * S * 0.04;
+  const id = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const pitch = d.width * S * 0.012;
   return (
     <svg
       className="nest-diagram"
@@ -96,11 +98,21 @@ function PieceDiagram({ piece, rounding, lit, onHover, onSelect }: { piece: Stoc
         onHover(null);
       }}
     >
+      <defs>
+        <pattern id={`${id}w`} className="nest-hatch" width={pitch} height={pitch} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+          <line x1={0} y1={0} x2={0} y2={pitch} strokeWidth={pitch * 0.14} />
+        </pattern>
+        <pattern id={`${id}g`} className="nest-grain" width={pitch * 8} height={pitch * 1.3} patternUnits="userSpaceOnUse">
+          <line x1={0} y1={pitch * 0.4} x2={pitch * 8} y2={pitch * 0.4} strokeWidth={pitch * 0.15} />
+        </pattern>
+      </defs>
       <rect className="stock" x={0} y={0} width={d.width * S} height={d.height * S} />
+      <rect className="waste" x={0} y={0} width={d.width * S} height={d.height * S} fill={`url(#${id}w)`} />
       {d.usable ? <rect className="trim" x={d.usable.x * S} y={d.usable.y * S} width={d.usable.w * S} height={d.usable.h * S} /> : null}
       {d.parts.map((q) => {
         const on = over === q.p.tag || lit === q.p.tag;
         const fs = Math.max(0, Math.min(font, (q.w * S * 0.9) / (q.p.tag.length * 0.62), q.h * S * 0.8));
+        const boxW = fs * (q.p.tag.length * 0.62 + 0.7);
         return (
           <g
             key={q.p.tag}
@@ -114,10 +126,14 @@ function PieceDiagram({ piece, rounding, lit, onHover, onSelect }: { piece: Stoc
           >
             <title>{`${q.p.tag} ${q.p.name}: ${dims(q.p.size[1], q.p.size[2], rounding)}${q.p.turned ? " (turned)" : ""}. Click to select it in the model.`}</title>
             <rect x={q.x * S} y={q.y * S} width={q.w * S} height={q.h * S} />
+            {q.p.grain === "none" ? null : <rect className="grainlines" x={q.x * S} y={q.y * S} width={q.w * S} height={q.h * S} fill={`url(#${id}g)`} />}
             {fs > font * 0.18 ? (
-              <text x={(q.x + q.w / 2) * S} y={(q.y + q.h / 2) * S + fs * 0.35} fontSize={fs}>
-                {q.p.tag}
-              </text>
+              <>
+                {q.w * S > boxW && q.h * S > fs * 1.4 ? <rect className="stampbox" x={(q.x + q.w / 2) * S - boxW / 2} y={(q.y + q.h / 2) * S - fs * 0.68} width={boxW} height={fs * 1.36} /> : null}
+                <text x={(q.x + q.w / 2) * S} y={(q.y + q.h / 2) * S + fs * 0.35} fontSize={fs}>
+                  {q.p.tag}
+                </text>
+              </>
             ) : null}
           </g>
         );
@@ -165,6 +181,7 @@ export function NestingSection(p: NestingSectionProps) {
       ) : (
         <div className={p.busy ? "nest-body busy" : "nest-body"} aria-busy={p.busy}>
           <div className="sum nest-sum">
+            <p className="ticket">What to buy</p>
             <div data-testid="tile-nest-sheets">
               <b>{s!.sheets}</b>
               <span>{s!.sheetsLabel}</span>

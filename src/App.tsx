@@ -5,6 +5,7 @@ import { DemoBanner } from "./components/DemoBanner";
 import { isWebDemo, RELEASES_URL, REPO_URL, sitePage } from "./lib/site";
 import { ToolRail } from "./components/ToolRail";
 import { toolCursor } from "./components/toolCursor";
+import { stampLabels } from "./nesting/stamps";
 import { isMac } from "./lib/keys";
 import { Viewport, type KernelState, type ViewportPointer } from "./components/Viewport";
 import { SidePanel, type PaneId } from "./components/SidePanel";
@@ -2478,8 +2479,9 @@ export function App() {
   const contextBox = useMemo(() => contextBoxOverlay(st ?? null), [st]);
   // Grain arrows on every drawn piece while the Cut list pane is open.
   const grain = useMemo(() => (cutOpen ? grainOverlay(cutList) : []), [cutOpen, cutList]);
+  const stamps = useMemo(() => (cutOpen ? stampLabels(cutList) : []), [cutOpen, cutList]);
   const overlay = useMemo(() => [...contextBox, ...grain, ...annotations.overlay, ...toolView.overlay], [contextBox, grain, annotations, toolView.overlay]);
-  const labels = useMemo(() => [...annotations.labels, ...toolView.labels], [annotations, toolView.labels]);
+  const labels = useMemo(() => [...annotations.labels, ...stamps, ...toolView.labels], [annotations, stamps, toolView.labels]);
 
   /** Switch one of the style's section settings (one undo step). */
   const setSectionStyle = useCallback(
@@ -2847,7 +2849,7 @@ export function App() {
           onCsv: () => void saveCut(csvBytes, "cut list.csv", CSV_TYPE, "the cut list as a spreadsheet"),
           onPdf: () => void saveCut((l) => reportPdf(l, cutTitle), "cut list.pdf", PDF_TYPE, "the cut list report"),
           onPrint: printCut,
-          onLabels: () => void saveCut((l) => labelsPdf(l, cutTitle), "labels.pdf", PDF_TYPE, `${plural(cutList?.rows.length ?? 0, "label")} on Avery 5160-size sheets`),
+          onLabels: () => void saveCut((l) => labelsPdf(l, cutTitle), "labels.pdf", PDF_TYPE, `${plural(cutList?.rows.length ?? 0, "label")} on Avery 5160-size sheets, stamped to match the diagrams`),
           nestOpen,
           onNest: toggleNest,
           nesting: nestShown ? (
