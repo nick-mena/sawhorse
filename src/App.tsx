@@ -29,6 +29,7 @@ import { createKernel, KernelUnavailableError, type EditResult, type EmptySkp, t
 import { useRenderGate } from "./credits/gate";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { ShortcutsDialog } from "./components/ShortcutsDialog";
+import { FeedbackDialog } from "./components/FeedbackDialog";
 import type { Entity, KernelOp, SceneData, V3 } from "./kernel/types";
 import { describeTarget, nextTarget, type Target } from "./lib/edit";
 import { entityKey, eraseOps, partsOf, selectionHighlight, selectionLookup, withHover } from "./lib/entities";
@@ -301,7 +302,13 @@ export function App() {
   // Every error that reaches the status line is reworded: kernel refusals (and the file,
   // export and import errors that carry them) name things by public id, which people never
   // see (src/lib/names.ts).
-  const setMessage = useCallback((m: Message) => setMessageRaw(m && m.error ? { ...m, text: friendlyError(m.text) } : m), []);
+  // Kept for the feedback log: an error has often left the status line by the time it is reported.
+  const lastErrorRef = useRef<string | null>(null);
+  const setMessage = useCallback((m: Message) => {
+    const shown = m && m.error ? { ...m, text: friendlyError(m.text) } : m;
+    if (shown?.error) lastErrorRef.current = shown.text;
+    setMessageRaw(shown);
+  }, []);
   /** After undo / redo: the active tool's gesture is void and the measurements box shows its default again. */
   const afterHistoryRef = useRef<() => void>(() => undefined);
   const [selection, setSelection] = useState<Entity[]>([]);
@@ -2275,6 +2282,11 @@ export function App() {
       // Undo, redo and the file shortcuts are the app's wherever focus is (a pane's select,
       // checkbox or button too), unless a text field is being edited (it has its own undo).
       if (mod && !e.altKey && (!isEditableText(e.target) || inVcb)) {
+        if (bound === "feedback") {
+          e.preventDefault();
+          setFeedbackOpen(true);
+          return;
+        }
         if (bound === "undo") {
           e.preventDefault();
           void undo();
@@ -2665,18 +2677,20 @@ export function App() {
       ],
       Plugins: plugins.menu,
       Tools: [{ label: "Section Plane", title: "Cut the model with a plane (no default key)", checked: toolId === "section", onSelect: () => selectTool("section") }],
-      // The browser demo's way back to the site (the desktop app has no Help entries yet).
-      ...(isWebDemo()
-        ? {
-            Help: [
+      Help: [
+        { label: "Log Feedback…", keys: menuKeys("feedback"), title: "Note a problem or an idea in a log kept on this device", onSelect: () => setFeedbackOpen(true) },
+        // The browser demo's way back to the site.
+        ...(isWebDemo()
+          ? ([
+              "-" as const,
               { label: "User Guide", onSelect: () => openLink(sitePage("guide/")) },
               { label: "What's New", onSelect: () => openLink(sitePage("changelog/")) },
               "-" as const,
               { label: "Download the Desktop App", title: "Windows, macOS and Linux installers on GitHub", onSelect: () => openLink(RELEASES_URL) },
               { label: "Source on GitHub", onSelect: () => openLink(REPO_URL) },
-            ],
-          }
-        : {}),
+            ] as MenuItem[])
+          : []),
+      ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
@@ -2692,6 +2706,7 @@ export function App() {
   const [renderFocus, setRenderFocus] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const capture = useCallback(async () => {
     const engine = engineRef.current;
     if (!engine) throw new NothingToRenderError("The 3D view is not available (WebGL2 is off in this browser), so there is nothing to render from.");
@@ -2744,6 +2759,16 @@ export function App() {
       {nameRequest ? <NameDialog req={nameRequest} onClose={() => setNameRequest(null)} /> : null}
       {settingsOpen ? <SettingsDialog url={gate.url} status={gate.status} onUrl={gate.setUrl} onRecheck={gate.recheck} onClose={() => setSettingsOpen(false)} /> : null}
       {shortcutsOpen ? <ShortcutsDialog plugins={plugins.shortcutList} onClose={() => setShortcutsOpen(false)} /> : null}
+      {feedbackOpen ? (
+        <FeedbackDialog
+          context={{ file: docTitle, edited: dirty, mode: mode === "sheets" ? "Sheets" : "Model", tool: toolById(toolId).label, selection: selection.length, status: message?.text ?? null, lastError: lastErrorRef.current }}
+          onSaved={() => {
+            setFeedbackOpen(false);
+            setMessage({ text: "Added to your feedback log.", error: false });
+          }}
+          onClose={() => setFeedbackOpen(false)}
+        />
+      ) : null}
       {plugins.dialogs}
       <CutListReport list={printing ? cutList : null} title={cutTitle} />
       {stockOpen && nesting ? (

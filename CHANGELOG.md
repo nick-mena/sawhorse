@@ -4,6 +4,11 @@ All notable changes to Sawhorse are recorded here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added (feedback log, macOS fork, 2026-11-08)
+
+- **Help > Log Feedback… (Cmd+Shift+F) keeps problems and ideas in one local file to review together.** Each entry records the note with the app version, file name, tool, selection count, status line and last error. On the desktop it is `feedback-log.md` in the app's data folder; nothing is sent anywhere. A note that cannot be written stays in the box, and closing without saving keeps it for next time.
+- Tests: `src/io/feedback.test.ts`, `src/components/FeedbackDialog.test.tsx`, `e2e/feedback.spec.ts`.
+
 ### Added (keyboard shortcuts, macOS fork, 2026-11-08)
 
 - **Edit > Keyboard Shortcuts… shows every key and lets you change the tool, file and edit keys.** Click a key, press the new one, and it applies at once, saved on this device. The page refuses keys that would break typing or belong to the system, asks before taking a key from another command, and can reset one key or all of them. The menus, tool rail, tooltips and status messages name the keys you chose. Esc, Delete, Enter, the arrows and tapped modifiers stay fixed and are listed for reference, along with any running plugin's keys.

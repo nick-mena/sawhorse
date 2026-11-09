@@ -526,3 +526,8 @@ button.chip:hover{border-color:var(--accent)}
 .shortcuts-dialog kbd{font:var(--type-detail) var(--body);color:var(--muted);padding-right:8px}
 .shortcuts-dialog .note{margin:2px 0 6px}
 .sc-conflict{display:flex;align-items:center;gap:8px}
+
+/* ---- Help > Log Feedback… ---- */
+.feedback-dialog{top:40%;width:min(460px,calc(100vw - 32px))}
+.feedback-dialog textarea{min-height:120px;font-size:var(--type-body)}
+.feedback-dialog code{font:var(--type-micro) var(--mono);word-break:break-all}

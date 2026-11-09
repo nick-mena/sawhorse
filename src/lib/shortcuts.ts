@@ -8,9 +8,9 @@ import { startsValueEntry, TOOLS, toolById, type BuiltinToolId, type ToolDef } f
 
 const STORAGE_KEY = "sawhorse.shortcuts";
 
-export type CommandId = "open" | "save" | "saveAs" | "import" | "undo" | "redo" | "selectAll" | "group" | "explode" | "zoomExtents";
+export type CommandId = "open" | "save" | "saveAs" | "import" | "undo" | "redo" | "selectAll" | "group" | "explode" | "zoomExtents" | "feedback";
 export type ActionId = BuiltinToolId | CommandId;
-export type ShortcutGroup = "Tools" | "File" | "Edit" | "View";
+export type ShortcutGroup = "Tools" | "File" | "Edit" | "View" | "Help";
 
 export interface ShortcutAction {
   id: ActionId;
@@ -38,6 +38,7 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: "group", label: "Make Group", group: "Edit", kind: "chord", defaults: ["Ctrl+G"] },
   { id: "explode", label: "Explode", group: "Edit", kind: "chord", defaults: ["Ctrl+Shift+G"] },
   { id: "zoomExtents", label: "Zoom Extents", group: "View", kind: "key", defaults: ["Shift+Z"] },
+  { id: "feedback", label: "Log Feedback", group: "Help", kind: "chord", defaults: ["Ctrl+Shift+F"] },
 ];
 
 const ACTION_BY_ID = new Map(SHORTCUT_ACTIONS.map((a) => [a.id, a]));

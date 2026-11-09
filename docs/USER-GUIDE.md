@@ -448,6 +448,10 @@ Writing plugins: `docs/PLUGINS.md`.
 
 A push, or a Follow Me cut, that cuts a board in two leaves two solids. The piece that keeps the board's smallest face id keeps its name ("solid 3"); the other gets the next number. Both stay in the board's group. Inside a component used more than once, the cut makes that instance unique first, so the other instances are not cut.
 
+## Logging feedback
+
+**Help > Log Feedback…** (Cmd+Shift+F) notes a problem or an idea without leaving your work. Each entry is added to one file on your Mac, `~/Library/Application Support/app.sawhorse.desktop/feedback-log.md`, with the app version, file name, tool, selection count, status line and last error, so the notes can be read together later. Nothing is sent anywhere. In the browser build the log stays in that browser, and **Download Log** saves a copy.
+
 ## Settings
 
 **Edit > Units** sets the units lengths are typed and shown in (see [Units](#the-first-ten-minutes) under The first ten minutes); the unit chip beside the Value Control Box opens the same picker.

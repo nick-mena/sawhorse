@@ -30,7 +30,7 @@ export interface ShortcutsDialogProps {
   onClose: () => void;
 }
 
-const GROUPS: ShortcutGroup[] = ["Tools", "File", "Edit", "View"];
+const GROUPS: ShortcutGroup[] = ["Tools", "File", "Edit", "View", "Help"];
 
 const FIXED: [string, string][] = [
   ["Esc", "Cancel the tool, clear the selection, or close a group"],
