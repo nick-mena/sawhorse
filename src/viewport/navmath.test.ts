@@ -22,6 +22,7 @@ import {
   rayAt,
   rotate,
   sub,
+  isTrackpadWheel,
   wheelZoomFactor,
   zoomAt,
   type Lens,
@@ -229,6 +230,12 @@ describe("zoom keeps the cursor's point fixed", () => {
       lens = { ...lens, zoom: z.zoom };
       for (const q of points) expect(ndcDistance(projectNdc(p, lens, q), c)).toBeLessThan(1e-9);
     }
+  });
+
+  it("tells a trackpad's two fingers from a mouse wheel by the numbers", () => {
+    for (const [dx, dy] of [[0, 1], [0, -7], [3, 0], [12, 40]]) expect(isTrackpadWheel(dx, dy)).toBe(true);
+    for (const dy of [4.000244140625, -8.00048828125, -400, 600, -120, -240, 0]) expect(isTrackpadWheel(0, dy)).toBe(false);
+    expect(isTrackpadWheel(0, 3, 1)).toBe(false);
   });
 
   it("wheel steps match the ones three.js OrbitControls took (5% per 100 px)", () => {

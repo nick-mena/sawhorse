@@ -11,6 +11,9 @@
 //   wheel              zoom toward the cursor (the point under it stays put)
 //   one finger         orbit, as middle-drag
 //   two fingers        pinch to zoom about their midpoint, drag to pan
+//   trackpad (macOS)   pinch to zoom toward the cursor, swipe two fingers to orbit about the
+//                      point under the cursor (at the speed set in Settings), Shift+swipe
+//                      to pan, Cmd+swipe to zoom; a mouse wheel still zooms
 //
 // The left button belongs to the active tool. After every move the look-at point
 // (`target`, what the standard views, zoom extents, the grid density, the projection
@@ -20,8 +23,9 @@
 // the document, so it follows the pointer off the canvas, and ends when the button is
 // found released (a release outside the window) or the window loses focus.
 import * as THREE from "three";
+import { swipeOrbits, trackpadOrbitSpeed } from "../lib/navPrefs";
 import type { Vec3 } from "./camera";
-import { dragAngles, lookTarget, orbit, panOffset, rayAt, wheelZoomFactor, zoomAt, type Lens, type Pose } from "./navmath";
+import { dragAngles, isTrackpadWheel, lookTarget, orbit, panOffset, rayAt, wheelZoomFactor, zoomAt, type Lens, type Pose } from "./navmath";
 
 export type NavMode = "orbit" | "pan" | "pinch";
 
@@ -52,6 +56,17 @@ interface Drag {
   /** Pinch: the fingers' spacing at the last move. */
   spacing?: number;
 }
+
+/** A trackpad swipe has ended once its wheel events (momentum included) stop this long (ms). */
+const SWIPE_GAP_MS = 160;
+
+/** A Cmd+swipe's pixels are small beside a wheel's notches: this many wheel pixels each. */
+const SWIPE_ZOOM_GAIN = 3;
+
+type SwipeMode = "orbit" | "pan" | "zoom";
+
+/** WebKit's pinch: the desktop app's webview sends these in place of Ctrl+wheel. */
+type PinchEvent = Event & { scale: number; clientX?: number; clientY?: number };
 
 const Z = new THREE.Vector3(0, 0, 1);
 
@@ -96,6 +111,11 @@ export class CameraController {
   private listeners = new Set<() => void>();
   private drag: Drag | null = null;
   private touches = new Map<number, { x: number; y: number }>();
+  /** Orbit: `anchor` is the pivot. Pan: the grabbed point, and (x, y) where the fingers have
+   * carried it. Zoom: the point held at (x, y). */
+  private swipe: { mode: SwipeMode; anchor: Vec3; x: number; y: number; timer: ReturnType<typeof setTimeout> } | null = null;
+  private pinch: { x: number; y: number; anchor: Vec3; scale: number } | null = null;
+  private swipeOrbits = swipeOrbits();
   private lastPose = "";
   private doc: Document;
   private win: Window | null;
@@ -111,6 +131,9 @@ export class CameraController {
     dom.style.touchAction = "none";
     dom.addEventListener("pointerdown", this.onDown);
     dom.addEventListener("wheel", this.onWheel, { passive: false });
+    dom.addEventListener("gesturestart", this.onPinchStart);
+    dom.addEventListener("gesturechange", this.onPinchChange);
+    dom.addEventListener("gestureend", this.onPinchEnd);
   }
 
   /** Listen for camera moves (orbit, pan, zoom, and `update`). */
@@ -122,6 +145,8 @@ export class CameraController {
   /** What the controller is doing, and the pivot while orbiting (the marker). */
   state(): { mode: NavMode | null; pivot: Vec3 | null } {
     const d = this.drag;
+    const s = this.swipe;
+    if (!d && s) return { mode: s.mode === "zoom" ? "pinch" : s.mode, pivot: s.mode === "orbit" ? s.anchor : null };
     return { mode: d?.mode ?? null, pivot: d?.mode === "orbit" ? d.anchor : null };
   }
 
@@ -135,8 +160,14 @@ export class CameraController {
 
   dispose(): void {
     this.endDrag(false);
+    if (this.swipe) clearTimeout(this.swipe.timer);
+    this.swipe = null;
+    this.pinch = null;
     this.dom.removeEventListener("pointerdown", this.onDown);
     this.dom.removeEventListener("wheel", this.onWheel);
+    this.dom.removeEventListener("gesturestart", this.onPinchStart);
+    this.dom.removeEventListener("gesturechange", this.onPinchChange);
+    this.dom.removeEventListener("gestureend", this.onPinchEnd);
     this.listeners.clear();
   }
 
@@ -342,9 +373,67 @@ export class CameraController {
 
   private onWheel = (e: WheelEvent): void => {
     e.preventDefault();
+    if (this.pinch) return;
+    const [x, y] = this.local(e);
+    // Once a swipe is under way its later events stay part of it, whatever their size.
+    if (this.swipeOrbits && !e.ctrlKey && (this.swipe || isTrackpadWheel(e.deltaX, e.deltaY, e.deltaMode))) {
+      this.swipeBy(e, x, y);
+      return;
+    }
     const f = wheelZoomFactor(e.deltaY, e.deltaMode, e.ctrlKey);
     if (f === 1) return;
-    const [x, y] = this.local(e);
     this.zoomBy(x, y, f, this.grab(x, y));
+  };
+
+  /** Scroll deltas run opposite to the fingers, so the model follows them as it does a drag. */
+  private swipeBy(e: WheelEvent, x: number, y: number): void {
+    if (this.drag) return;
+    if (this.swipe) clearTimeout(this.swipe.timer);
+    const timer = setTimeout(this.endSwipe, SWIPE_GAP_MS);
+    const mode: SwipeMode = e.metaKey ? "zoom" : e.shiftKey ? "pan" : "orbit";
+    // A modifier pressed or let go mid-swipe starts the new move from where the pointer is.
+    const fresh = this.swipe?.mode !== mode;
+    const s = fresh ? { mode, anchor: mode === "orbit" ? this.pivotAt(x, y) : this.grab(x, y), x, y, timer } : { ...this.swipe!, timer };
+    this.swipe = s;
+    if (fresh) this.host.navigating();
+    if (mode === "orbit") {
+      const speed = trackpadOrbitSpeed() / 100;
+      this.orbitBy(-e.deltaX * speed, -e.deltaY * speed, s.anchor);
+    } else if (mode === "pan") {
+      s.x -= e.deltaX;
+      s.y -= e.deltaY;
+      this.panTo(s.x, s.y, s.anchor);
+    } else {
+      this.zoomBy(s.x, s.y, wheelZoomFactor(e.deltaY * SWIPE_ZOOM_GAIN, e.deltaMode), s.anchor);
+    }
+  }
+
+  private endSwipe = (): void => {
+    this.swipe = null;
+    this.host.navigating();
+  };
+
+  private onPinchStart = (ev: Event): void => {
+    ev.preventDefault();
+    if (this.drag) return;
+    const e = ev as PinchEvent;
+    const { w, h } = this.host.size();
+    const r = this.dom.getBoundingClientRect();
+    const [x, y] = this.local({ clientX: e.clientX ?? r.left + w / 2, clientY: e.clientY ?? r.top + h / 2 });
+    this.pinch = { x, y, anchor: this.grab(x, y), scale: e.scale > 0 ? e.scale : 1 };
+  };
+
+  private onPinchChange = (ev: Event): void => {
+    ev.preventDefault();
+    const p = this.pinch;
+    const { scale } = ev as PinchEvent;
+    if (!p || !(scale > 0)) return;
+    this.zoomBy(p.x, p.y, scale / p.scale, p.anchor);
+    p.scale = scale;
+  };
+
+  private onPinchEnd = (ev: Event): void => {
+    ev.preventDefault();
+    this.pinch = null;
   };
 }

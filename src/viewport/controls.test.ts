@@ -212,6 +212,157 @@ describe("right-drag pan and wheel zoom", () => {
   });
 });
 
+describe("trackpad", () => {
+  const wheel = (init: WheelEventInit) => {
+    const e = new WheelEvent("wheel", { bubbles: true, cancelable: true, clientX: 250, clientY: 420, ...init });
+    canvas.dispatchEvent(e);
+    return e;
+  };
+  const pinch = (type: string, scale: number) => {
+    const e = Object.assign(new Event(type, { bubbles: true, cancelable: true }), { scale, clientX: 250, clientY: 420 });
+    canvas.dispatchEvent(e);
+    return e;
+  };
+  const onMac = () => {
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    ctl.dispose();
+    canvas.remove();
+    setup();
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("two fingers orbit about the point under the cursor, and the swipe ends when they stop", () => {
+    vi.useFakeTimers();
+    onMac();
+    const under = hitAt(cam, 250, 420)!;
+    const before = cam.position.distanceTo(new THREE.Vector3(...under));
+    const look = new THREE.Vector3();
+    cam.getWorldDirection(look);
+    const was = look.clone();
+    expect(wheel({ deltaX: 14, deltaY: 3 }).defaultPrevented).toBe(true);
+    wheel({ deltaX: 9, deltaY: 100 }); // part of the same swipe, though a whole hundred
+    cam.getWorldDirection(look);
+    expect(look.angleTo(was)).toBeGreaterThan(0.01);
+    expect(cam.position.distanceTo(new THREE.Vector3(...under))).toBeCloseTo(before, 9);
+    const s = screenOf(cam, under);
+    expect(Math.hypot(s[0] - 250, s[1] - 420)).toBeLessThan(1e-6);
+    expect(ctl.state()).toEqual({ mode: "orbit", pivot: under });
+    expect(navigating).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(200);
+    expect(ctl.state().mode).toBeNull();
+    expect(navigating).toHaveBeenCalledTimes(2);
+  });
+
+  it("the orbit speed setting scales how far a swipe turns", () => {
+    const turned = (speed: number) => {
+      vi.useFakeTimers();
+      localStorage.setItem("sawhorse.trackpadOrbitSpeed", String(speed));
+      onMac();
+      const look = new THREE.Vector3();
+      cam.getWorldDirection(look);
+      const was = look.clone();
+      wheel({ deltaX: 20, deltaY: 0 });
+      cam.getWorldDirection(look);
+      vi.advanceTimersByTime(200);
+      return look.angleTo(was);
+    };
+    try {
+      expect(turned(100) / turned(50)).toBeCloseTo(2, 2);
+    } finally {
+      localStorage.clear();
+    }
+  });
+
+  it("Shift+swipe pans: the point under the cursor follows the fingers, and the view does not turn", () => {
+    vi.useFakeTimers();
+    onMac();
+    const under = hitAt(cam, 250, 420)!;
+    const look = new THREE.Vector3();
+    cam.getWorldDirection(look);
+    const was = look.clone();
+    wheel({ deltaX: -30, deltaY: -10, shiftKey: true });
+    wheel({ deltaX: -5, deltaY: 4, shiftKey: true });
+    const s = screenOf(cam, under);
+    expect(s[0]).toBeCloseTo(285, 6);
+    expect(s[1]).toBeCloseTo(426, 6);
+    cam.getWorldDirection(look);
+    expect(look.angleTo(was)).toBeLessThan(1e-9);
+    expect(ctl.state()).toEqual({ mode: "pan", pivot: null });
+    expect(navigating).toHaveBeenCalledTimes(1);
+  });
+
+  it("Cmd+swipe zooms toward the cursor, up and down only", () => {
+    vi.useFakeTimers();
+    onMac();
+    const under = hitAt(cam, 250, 420)!;
+    const before = cam.position.distanceTo(new THREE.Vector3(...under));
+    wheel({ deltaX: 25, deltaY: -50, metaKey: true });
+    expect(cam.position.distanceTo(new THREE.Vector3(...under))).toBeCloseTo(before * Math.pow(0.95, 1.5), 9);
+    const s = screenOf(cam, under);
+    expect(Math.hypot(s[0] - 250, s[1] - 420)).toBeLessThan(1e-6);
+    expect(ctl.state()).toEqual({ mode: "pinch", pivot: null });
+  });
+
+  it("a modifier let go mid-swipe changes the move", () => {
+    vi.useFakeTimers();
+    onMac();
+    wheel({ deltaX: 12, deltaY: 3, shiftKey: true });
+    expect(ctl.state().mode).toBe("pan");
+    wheel({ deltaX: 12, deltaY: 3 });
+    expect(ctl.state().mode).toBe("orbit");
+    expect(ctl.state().pivot).not.toBeNull();
+  });
+
+  it("a mouse wheel on a Mac still zooms", () => {
+    onMac();
+    const under = hitAt(cam, 250, 420)!;
+    const before = cam.position.distanceTo(new THREE.Vector3(...under));
+    wheel({ deltaY: -2 * 4.000244140625 });
+    expect(cam.position.distanceTo(new THREE.Vector3(...under))).toBeLessThan(before);
+    expect(ctl.state().mode).toBeNull();
+  });
+
+  it("a pinch that arrives as Ctrl+wheel zooms, whatever its delta", () => {
+    onMac();
+    const under = hitAt(cam, 250, 420)!;
+    const before = cam.position.distanceTo(new THREE.Vector3(...under));
+    wheel({ deltaY: -7, ctrlKey: true });
+    expect(cam.position.distanceTo(new THREE.Vector3(...under))).toBeLessThan(before);
+    expect(ctl.state().mode).toBeNull();
+  });
+
+  it("WebKit's pinch zooms by its scale, about the cursor, and any wheel during it is ignored", () => {
+    const under = hitAt(cam, 250, 420)!;
+    const d0 = cam.position.distanceTo(new THREE.Vector3(...under));
+    expect(pinch("gesturestart", 1).defaultPrevented).toBe(true);
+    expect(pinch("gesturechange", 2).defaultPrevented).toBe(true);
+    expect(cam.position.distanceTo(new THREE.Vector3(...under))).toBeCloseTo(d0 / 2, 9);
+    const s = screenOf(cam, under);
+    expect(Math.hypot(s[0] - 250, s[1] - 420)).toBeLessThan(1e-6);
+    wheel({ deltaY: -400, ctrlKey: true });
+    expect(cam.position.distanceTo(new THREE.Vector3(...under))).toBeCloseTo(d0 / 2, 9);
+    pinch("gesturechange", 1);
+    expect(cam.position.distanceTo(new THREE.Vector3(...under))).toBeCloseTo(d0, 9);
+    pinch("gestureend", 1);
+    wheel({ deltaY: -400, ctrlKey: true });
+    expect(cam.position.distanceTo(new THREE.Vector3(...under))).toBeLessThan(d0);
+  });
+
+  it("off the Mac a two-finger swipe zooms as before", () => {
+    const look = new THREE.Vector3();
+    cam.getWorldDirection(look);
+    const was = look.clone();
+    wheel({ deltaX: 14, deltaY: 13 });
+    cam.getWorldDirection(look);
+    expect(look.angleTo(was)).toBeLessThan(1e-9);
+    expect(ctl.state().mode).toBeNull();
+  });
+});
+
 describe("touch", () => {
   it("one finger orbits about the point under it; two fingers pinch about their midpoint", () => {
     const at: [number, number] = [460, 250];

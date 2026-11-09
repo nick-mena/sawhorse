@@ -197,6 +197,22 @@ export function wheelZoomFactor(deltaY: number, deltaMode = 0, ctrl = false): nu
   return d < 0 ? 1 / s : s;
 }
 
+/** What macOS reports for one notch of a mouse wheel, or a whole multiple of it when fast. */
+const MAC_WHEEL_NOTCH = 4.000244140625;
+
+/**
+ * Whether a wheel event came from two fingers on a trackpad rather than a mouse wheel. The
+ * browser does not say, so this reads the numbers: a sideways delta is a trackpad's, and a
+ * mouse moves in whole notches (macOS's own, or the 100 or 120 pixels other drivers send).
+ */
+export function isTrackpadWheel(deltaX: number, deltaY: number, deltaMode = 0): boolean {
+  if (deltaMode !== 0) return false;
+  if (deltaX !== 0) return true;
+  if (deltaY === 0) return false;
+  const whole = (step: number): boolean => Math.abs(deltaY / step - Math.round(deltaY / step)) < 1e-6;
+  return !whole(MAC_WHEEL_NOTCH) && !whole(100) && !whole(120);
+}
+
 /**
  * Zoom by `factor` toward the cursor at NDC (x, y). Perspective: the eye moves along the
  * cursor ray toward `anchor` (a point on that ray: what is under the cursor), keeping

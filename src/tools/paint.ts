@@ -463,7 +463,7 @@ export class PaintTool extends Tool {
 
   view(): ToolView {
     const p = this.pos;
-    if (!p) return { ...EMPTY_VIEW, cursor: "crosshair" };
+    if (!p) return EMPTY_VIEW;
     const hs = this.handles();
     const square = (q: [number, number], r: number): V3[] => [
       this.world([q[0] - r, q[1] - r]),

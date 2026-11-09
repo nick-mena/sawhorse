@@ -39,6 +39,41 @@ const dir = (c: Cam): V3 => {
   return [d[0] / l, d[1] / l, d[2] / l];
 };
 
+test("Settings takes focus: tool keys stay out, Tab stays in, Esc closes it", async ({ page }) => {
+  await ready(page);
+  await page.getByRole("button", { name: "Edit", exact: true }).click();
+  await page.getByRole("menuitem", { name: /Settings/ }).click();
+  const dialog = page.getByRole("dialog", { name: "Settings" });
+  await expect(dialog).toBeFocused();
+  await expect(dialog).toHaveAttribute("aria-modal", "true");
+  await page.keyboard.press("r");
+  await expect(page.locator('[data-tool="rect"]')).toHaveAttribute("aria-pressed", "false");
+  const inside = () => dialog.evaluate((d) => d.contains(document.activeElement));
+  for (let i = 0; i < 9; i++) {
+    await page.keyboard.press("Tab");
+    expect(await inside()).toBe(true);
+  }
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+});
+
+test("the pointer over the view shows which tool is active", async ({ page }) => {
+  await ready(page);
+  const cursor = () => page.locator("#cv").evaluate((el) => getComputedStyle(el).cursor);
+  expect(await cursor()).toBe("auto");
+  const seen = new Set<string>();
+  for (const id of ["rect", "line", "circle", "pushpull", "move", "erase", "section", "paint"]) {
+    await page.locator(`[data-tool="${id}"]`).click();
+    const c = await cursor();
+    expect(c).toMatch(/image-set\(url\("data:image\/png/);
+    expect(c).toMatch(/\) 8 8, crosshair$/);
+    seen.add(c);
+  }
+  expect(seen.size).toBe(8);
+  await page.locator('[data-tool="select"]').click();
+  expect(await cursor()).toBe("auto");
+});
+
 test("middle-drag orbits, Shift+middle-drag pans, the wheel zooms toward the cursor", async ({ page }) => {
   const vp = await ready(page);
   await expect(vp).toHaveAttribute("data-view", "iso");

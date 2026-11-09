@@ -162,7 +162,6 @@ export class SectionTool extends Tool {
         ...inferenceLine(this.snap),
       ],
       marker: markerOf(this.snap),
-      cursor: "crosshair",
     };
   }
 }

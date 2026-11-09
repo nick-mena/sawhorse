@@ -4,6 +4,7 @@ import { TopBar, type MenuItem } from "./components/TopBar";
 import { DemoBanner } from "./components/DemoBanner";
 import { isWebDemo, RELEASES_URL, REPO_URL, sitePage } from "./lib/site";
 import { ToolRail } from "./components/ToolRail";
+import { toolCursor } from "./components/toolCursor";
 import { isMac } from "./lib/keys";
 import { Viewport, type KernelState, type ViewportPointer } from "./components/Viewport";
 import { SidePanel, type PaneId } from "./components/SidePanel";
@@ -2625,7 +2626,7 @@ export function App() {
             { label: "Choose…", title: "The unit picker beside the Value Control Box", onSelect: () => setUnitPickerOpen((n) => n + 1) },
           ],
         },
-        { label: "Settings…", title: "The render service (renders are off until one is set and answering)", onSelect: () => setSettingsOpen(true) },
+        { label: "Settings…", title: "Trackpad orbit speed, and the render service (renders are off until one is set and answering)", onSelect: () => setSettingsOpen(true) },
       ],
       View: [
         // Lane 12: the model or its drawing sheets.
@@ -2804,7 +2805,7 @@ export function App() {
         marker={toolView.marker}
         labels={labels}
         box={toolView.box}
-        cursor={toolView.cursor}
+        cursor={toolView.cursor ?? toolCursor(toolId)}
         selectionCount={selection.length}
         hoverKind={hover?.kind}
         onPointer={onPointer}
