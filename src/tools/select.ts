@@ -23,6 +23,7 @@ import { faceOf, regionName, solidName } from "../lib/names";
 import { describeNode, graphOf, reachableContext, scopeEntity } from "../lib/scope";
 import { describeSection } from "../lib/sections";
 import { EMPTY_VIEW, Tool, type ToolEvent, type ToolView } from "./tool";
+import { withKey } from "../lib/shortcuts";
 
 /** Pixels the pointer must travel with the button down before a click becomes a box. */
 export const DRAG_PX = 4;
@@ -185,7 +186,7 @@ export function describe(e: Entity, state?: DocState | null, ctx?: DescribeConte
     case "vertex":
       return "Selected a point.";
     case "region":
-      return `Selected ${regionName(e.sketch, e.region)}. Push/Pull (P) raises it; Delete erases it.`;
+      return `Selected ${regionName(e.sketch, e.region)}. ${withKey("Push/Pull", "pushpull")} raises it; Delete erases it.`;
     case "object":
       return `Selected ${solidName(e.object)}.`;
     case "guide":

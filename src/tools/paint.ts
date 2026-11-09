@@ -18,6 +18,7 @@ import { describeNode, graphOf, scopeEntity, solidsIn } from "../lib/scope";
 import { faceOf, solidName } from "../lib/names";
 import type { OverlayItem } from "../viewport/engine";
 import { EMPTY_VIEW, Tool, type ToolEvent, type ToolHost, type ToolView } from "./tool";
+import { keyOr } from "../lib/shortcuts";
 
 /** What the Paint tool needs from the app beyond the tool host. */
 export interface PaintContext {
@@ -405,7 +406,7 @@ export class PaintTool extends Tool {
           this.livePreview();
           if (JSON.stringify(p.now) !== JSON.stringify(p.base)) {
             p.start = p.now;
-            void this.host.apply({ op: "set_face_uv", object: p.object, face: p.face, uv: cleanUv(p.now) }, () => "Texture positioned. Ctrl+Z puts it back.");
+            void this.host.apply({ op: "set_face_uv", object: p.object, face: p.face, uv: cleanUv(p.now) }, () => `Texture positioned. ${keyOr("undo", "Edit > Undo")} puts it back.`);
           }
           return;
         }

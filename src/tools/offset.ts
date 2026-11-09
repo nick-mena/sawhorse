@@ -15,6 +15,7 @@ import { faceOf, regionName, solidName } from "../lib/names";
 import { parseVcb } from "../lib/vcb";
 import { add, cross, dot, len, mul, sub, unit } from "./draw";
 import { EMPTY_VIEW, Tool, markerOf, type InferContext, type Snap, type ToolEvent, type ToolView } from "./tool";
+import { withKey } from "../lib/shortcuts";
 
 const MIN_OFFSET = 1e-5;
 const key = (p: V3) => p.map((x) => Math.round(x * 1e8)).join(",");
@@ -358,7 +359,7 @@ export class OffsetTool extends Tool {
     const r = await h.apply({ op: "offset", source, distance: d }, (res: EditResult) => {
       const o = res.outcome;
       const where = o.kind === "drawn" ? (o.sketch !== null ? "into a sketch on its plane" : "on the solid") : "";
-      return `Offset ${what} ${h.fmt(Math.abs(d))} ${h.unitLabel()} ${way}, ${where}. Push/Pull (P) the new face next.`;
+      return `Offset ${what} ${h.fmt(Math.abs(d))} ${h.unitLabel()} ${way}, ${where}. ${withKey("Push/Pull", "pushpull")} the new face next.`;
     });
     if (r) {
       this.last = { source, what, d };

@@ -15,6 +15,7 @@ import { add, dirName, dist, dot, fmtPoint, horizontalAt, local, mul, onPlane, p
 import { StrokeTool, faceNote } from "./stroke";
 import { finalTarget } from "./target";
 import type { Snap, ToolEvent, ToolView } from "./tool";
+import { withKey } from "../lib/shortcuts";
 
 type Variant = "rect" | "rotated";
 
@@ -189,7 +190,7 @@ export class RectTool extends StrokeTool {
     const target = finalTarget(plane, this.snaps);
     this.reset();
     h.changed();
-    await this.stroke(target.target, pts, true, (r: EditResult) => `${what} ${target.where(h.fmt)}${faceNote(r)}${extents}. Push/Pull (P) and type a distance to raise it.`);
+    await this.stroke(target.target, pts, true, (r: EditResult) => `${what} ${target.where(h.fmt)}${faceNote(r)}${extents}. ${withKey("Push/Pull", "pushpull")} and type a distance to raise it.`);
   }
 
   onValue(text: string): void {

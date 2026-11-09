@@ -11,6 +11,7 @@ import { faceOf, regionName, solidName } from "../lib/names";
 import { cross, dot, len, sub } from "./draw";
 import { chainOf } from "./offset";
 import { EMPTY_VIEW, Tool, markerOf, type Snap, type ToolEvent, type ToolView } from "./tool";
+import { menuKeys } from "../lib/shortcuts";
 
 export interface Path {
   points: V3[];
@@ -20,7 +21,7 @@ export interface Path {
 
 /** The path from the selection: a chain of edges, or a face's (region's) outer edge. */
 export async function pathOf(sel: Entity[], outline: (e: Entity) => Promise<V3[][]>): Promise<Path | string> {
-  if (!sel.length) return "Select the path first (edges end to end, or a face to go round its edge), then press W and click the profile.";
+  if (!sel.length) return `Select the path first (edges end to end, or a face to go round its edge), then ${menuKeys("follow") ? `press ${menuKeys("follow")}` : "choose Follow"} and click the profile.`;
   const edges = sel.filter((e): e is Extract<Entity, { kind: "edge" }> => e.kind === "edge");
   if (edges.length === sel.length) {
     const c = chainOf(edges.map((e) => [e.a, e.b]));

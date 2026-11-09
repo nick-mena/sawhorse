@@ -28,6 +28,7 @@ import { ValueBar, type StatusMessage } from "./components/ValueBar";
 import { createKernel, KernelUnavailableError, type EditResult, type EmptySkp, type KernelClient, type RestartInfo } from "./kernel/client";
 import { useRenderGate } from "./credits/gate";
 import { SettingsDialog } from "./components/SettingsDialog";
+import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import type { Entity, KernelOp, SceneData, V3 } from "./kernel/types";
 import { describeTarget, nextTarget, type Target } from "./lib/edit";
 import { entityKey, eraseOps, partsOf, selectionHighlight, selectionLookup, withHover } from "./lib/entities";
@@ -36,7 +37,8 @@ import { contextTrail, describeNode, entityShown, graphIndex, graphOf, nodeById,
 import { meshIndex } from "./lib/meshIndex";
 import { describe } from "./tools/select";
 import type { OverlayItem } from "./viewport/engine";
-import { startsValueEntry, toolById, toolForKey, type ToolId } from "./lib/tools";
+import { startsValueEntry, toolById, type ToolId } from "./lib/tools";
+import { actionForEvent, keyOr, menuKeys, toolForAction, useShortcutsVersion, withKey } from "./lib/shortcuts";
 import { formatLength, M_PER_IN, UNIT_CHOICES, unitInfo, UNIT_SYSTEMS, type UnitSystem } from "./lib/units";
 import type { Projection, ViewId, ViewportEngine } from "./viewport/engine";
 import { gridSpec, projectionForView, VIEWS } from "./viewport/camera";
@@ -1310,7 +1312,7 @@ export function App() {
         const r = await run(
           (k) => (signal?.aborted ? Promise.reject(new Error(`${plugin} stopped before "${name}" ran; nothing changed`)) : k.namedBatch(name, ops)),
           null,
-          () => `${plugin}: ${name}. Ctrl+Z undoes it in one step.`,
+          () => `${plugin}: ${name}. ${keyOr("undo", "Edit > Undo")} undoes it in one step.`,
         );
         if (!r) throw new Error(live.current.lastError ?? "refused");
         namedSteps.current = [...namedSteps.current.filter((n) => n.depth !== r.scene.state.undo_depth).slice(-199), { depth: r.scene.state.undo_depth, hash: r.scene.state.stats.hash, name }];
@@ -2038,7 +2040,7 @@ export function App() {
     () =>
       void apply({ op: "group_loose", meshes: [] }, (out) => {
         const n = out.outcome.kind === "loose_grouped" ? out.outcome.groups.length : 0;
-        return `Loose faces made into ${n} part${n === 1 ? "" : "s"} (one group per connected piece; Ctrl+Z puts them back).`;
+        return `Loose faces made into ${n} part${n === 1 ? "" : "s"} (one group per connected piece; ${keyOr("undo", "Edit > Undo")} puts them back).`;
       }),
     [apply],
   );
@@ -2267,48 +2269,48 @@ export function App() {
       // Sheets mode (lane 12) has its own keys (src/sheets/SheetsWorkspace.tsx); only undo,
       // redo and the file shortcuts are the app's there.
       const sheetsMode = modeRef.current === "sheets";
+      const bound = actionForEvent(e);
       // A plugin's shortcut (always with Ctrl, Alt or Meta; built-in keys win, see usePlugins).
-      if (!sheetsMode && !textEntry && !inVcb && pluginsRef.current?.shortcut(e)) return;
+      if (!bound && !sheetsMode && !textEntry && !inVcb && pluginsRef.current?.shortcut(e)) return;
       // Undo, redo and the file shortcuts are the app's wherever focus is (a pane's select,
       // checkbox or button too), unless a text field is being edited (it has its own undo).
       if (mod && !e.altKey && (!isEditableText(e.target) || inVcb)) {
-        const k = e.key.toLowerCase();
-        if (k === "z" && !e.shiftKey) {
+        if (bound === "undo") {
           e.preventDefault();
           void undo();
           return;
         }
-        if (k === "y" || (k === "z" && e.shiftKey)) {
+        if (bound === "redo") {
           e.preventDefault();
           void redo();
           return;
         }
-        if (k === "s") {
+        if (bound === "save" || bound === "saveAs") {
           e.preventDefault();
-          void save(e.shiftKey);
+          void save(bound === "saveAs");
           return;
         }
-        if (k === "o" && !e.shiftKey) {
+        if (bound === "open") {
           e.preventDefault();
           void openDialog();
           return;
         }
-        if (k === "i" && !e.shiftKey) {
+        if (bound === "import") {
           e.preventDefault();
           void importDialog();
           return;
         }
         if (sheetsMode) return;
-        if (k === "a" && !inVcb) {
+        if (bound === "selectAll" && !inVcb) {
           e.preventDefault();
           void afterPointer(selectAll);
           return;
         }
-        if (k === "g" && !inVcb) {
+        if ((bound === "group" || bound === "explode") && !inVcb) {
           e.preventDefault();
           void afterPointer(() => {
             const sel = live.current.selection;
-            if (e.shiftKey) void explode(sel.flatMap((x) => (x.kind === "node" ? [x.node] : [])));
+            if (bound === "explode") void explode(sel.flatMap((x) => (x.kind === "node" ? [x.node] : [])));
             else void makeGroup(itemsOf(sel));
           });
           return;
@@ -2349,7 +2351,7 @@ export function App() {
         void afterPointer(eraseSelection);
         return;
       }
-      if (e.shiftKey && (e.key === "Z" || e.key === "z")) {
+      if (bound === "zoomExtents") {
         e.preventDefault();
         zoomExtents();
         return;
@@ -2385,7 +2387,7 @@ export function App() {
         }
         return;
       }
-      const t = toolForKey(e.key);
+      const t = toolForAction(bound);
       if (t) {
         e.preventDefault();
         if (t.id !== toolIdRef.current) pendingToolRef.current = t.id;
@@ -2435,7 +2437,7 @@ export function App() {
             text: `${s.objects} solid${s.objects === 1 ? "" : "s"} · ${s.faces} faces · genus ${s.genus} · ${(s.volume_m3 / M_PER_IN ** 3).toFixed(1)} in³ · ${s.watertight ? "watertight" : "open"}`,
             tone: s.watertight ? "ok" : "err",
           }
-        : { text: `Sketch: ${s.regions} region${s.regions === 1 ? "" : "s"} · draw with Rect (R)` },
+        : { text: `Sketch: ${s.regions} region${s.regions === 1 ? "" : "s"} · draw with ${withKey("Rect", "rect")}` },
     );
     if (st.meshes?.length) hud.push({ text: `${plural(st.meshes.length, "mesh")} not solid (imported)`, tone: "err" });
     if (selection.length) hud.push({ text: `Selection: ${selection.length}` });
@@ -2513,15 +2515,16 @@ export function App() {
 
   // What the selection stands for, once per selection (the menus asked six times a draw).
   const selItems = useMemo(() => itemsOf(selection), [selection]);
+  const shortcutsVersion = useShortcutsVersion();
   const menus = useMemo<Record<string, MenuItem[]>>(
-    () => ({
+    () => (void shortcutsVersion, {
       File: [
         { label: "New", onSelect: () => void newDocument() },
-        { label: "Open…", keys: "Ctrl+O", onSelect: () => void openDialog() },
-        { label: "Save", keys: "Ctrl+S", onSelect: () => void save(false) },
-        { label: "Save As…", keys: "Ctrl+Shift+S", onSelect: () => void save(true) },
+        { label: "Open…", keys: menuKeys("open"), onSelect: () => void openDialog() },
+        { label: "Save", keys: menuKeys("save"), onSelect: () => void save(false) },
+        { label: "Save As…", keys: menuKeys("saveAs"), onSelect: () => void save(true) },
         "-",
-        { label: "Import…", keys: "Ctrl+I", title: "SketchUp, STL, 3MF, glTF, OBJ, DXF or SVG, as one undo step", onSelect: () => void importDialog() },
+        { label: "Import…", keys: menuKeys("import"), title: "SketchUp, STL, 3MF, glTF, OBJ, DXF or SVG, as one undo step", onSelect: () => void importDialog() },
         {
           label: "Import units",
           items: IMPORT_UNITS.map((x) => ({
@@ -2551,10 +2554,10 @@ export function App() {
         { label: "Print Sheets…", disabled: !scene?.sheets?.length, title: "Every drawing sheet through the system print dialog, at 100%", onSelect: () => exportSheets("print-all") },
       ],
       Edit: [
-        { label: `Undo${stepName(st?.undo_depth, st?.stats.hash) ? ` ${stepName(st?.undo_depth, st?.stats.hash)}` : ""}`, keys: "Ctrl+Z", disabled: !st?.can_undo, onSelect: () => void undo() },
-        { label: "Redo", keys: "Ctrl+Y", disabled: !st?.can_redo, onSelect: () => void redo() },
+        { label: `Undo${stepName(st?.undo_depth, st?.stats.hash) ? ` ${stepName(st?.undo_depth, st?.stats.hash)}` : ""}`, keys: menuKeys("undo"), disabled: !st?.can_undo, onSelect: () => void undo() },
+        { label: "Redo", keys: menuKeys("redo"), disabled: !st?.can_redo, onSelect: () => void redo() },
         "-",
-        { label: "Select All", keys: "Ctrl+A", onSelect: selectAll },
+        { label: "Select All", keys: menuKeys("selectAll"), onSelect: selectAll },
         ...(selection.length === 1 && selection[0].kind === "section"
           ? (() => {
               const id = (selection[0] as { section: number }).section;
@@ -2572,14 +2575,14 @@ export function App() {
         { label: "Delete", keys: "Delete", disabled: !selection.length, onSelect: eraseSelection },
         { label: "Delete Guides", disabled: !st?.guides?.length, onSelect: () => void apply({ op: "delete_guides" }, () => "Guides deleted.") },
         "-",
-        { label: "Make Group", keys: "Ctrl+G", disabled: !selItems.length, onSelect: () => void makeGroup(selItems) },
+        { label: "Make Group", keys: menuKeys("group"), disabled: !selItems.length, onSelect: () => void makeGroup(selItems) },
         { label: "Make Component…", disabled: !selItems.length, onSelect: () => makeComponent(selItems) },
         {
           label: "Make Unique",
           disabled: !(selection.length === 1 && selection[0].kind === "node" && (st?.graph?.nodes.find((n) => n.id === (selection[0] as { node: number }).node)?.kind ?? "") === "instance"),
           onSelect: () => selection[0]?.kind === "node" && void apply({ op: "make_unique", node: selection[0].node }, () => "Made unique: this copy has its own definition now."),
         },
-        { label: "Explode", keys: "Ctrl+Shift+G", disabled: !selection.some((x) => x.kind === "node"), onSelect: () => void explode(selection.flatMap((x) => (x.kind === "node" ? [x.node] : []))) },
+        { label: "Explode", keys: menuKeys("explode"), disabled: !selection.some((x) => x.kind === "node"), onSelect: () => void explode(selection.flatMap((x) => (x.kind === "node" ? [x.node] : []))) },
         {
           label: "Explode Curve",
           title: "The selected circles, arcs, polygons and curves become plain edges, each segment its own again; one undo step",
@@ -2629,13 +2632,14 @@ export function App() {
           ],
         },
         { label: "Settings…", title: "Trackpad orbit speed, and the render service (renders are off until one is set and answering)", onSelect: () => setSettingsOpen(true) },
+        { label: "Keyboard Shortcuts…", title: "See and change the keys", onSelect: () => setShortcutsOpen(true) },
       ],
       View: [
         // Lane 12: the model or its drawing sheets.
         { label: "Model", checked: mode === "model", onSelect: () => setMode("model") },
         { label: "Sheets", checked: mode === "sheets", title: "Drawing sheets: scaled views of the model on paper", onSelect: () => setMode("sheets") },
         "-",
-        { label: "Zoom Extents", keys: "Shift+Z", onSelect: zoomExtents },
+        { label: "Zoom Extents", keys: menuKeys("zoomExtents"), onSelect: zoomExtents },
         "-",
         { label: "Perspective", checked: projection === "perspective", onSelect: () => setProjection((p) => (p === "perspective" ? "parallel" : "perspective")) },
         { label: "Grid", checked: gridShown(st?.style), title: "Show or hide the ground grid (saved with the document and with each scene)", onSelect: () => setGrid(!gridShown(st?.style)) },
@@ -2675,7 +2679,7 @@ export function App() {
         : {}),
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
+    [shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
   );
 
   const valueLabel = active?.valueLabel() ?? null;
@@ -2687,6 +2691,7 @@ export function App() {
   const credits = useCredits(undefined, { baseUrl: gate.url, enabled: renderOn });
   const [renderFocus, setRenderFocus] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const capture = useCallback(async () => {
     const engine = engineRef.current;
     if (!engine) throw new NothingToRenderError("The 3D view is not available (WebGL2 is off in this browser), so there is nothing to render from.");
@@ -2738,6 +2743,7 @@ export function App() {
       {report ? <ImportReport report={report} onClose={() => setReport(null)} /> : null}
       {nameRequest ? <NameDialog req={nameRequest} onClose={() => setNameRequest(null)} /> : null}
       {settingsOpen ? <SettingsDialog url={gate.url} status={gate.status} onUrl={gate.setUrl} onRecheck={gate.recheck} onClose={() => setSettingsOpen(false)} /> : null}
+      {shortcutsOpen ? <ShortcutsDialog plugins={plugins.shortcutList} onClose={() => setShortcutsOpen(false)} /> : null}
       {plugins.dialogs}
       <CutListReport list={printing ? cutList : null} title={cutTitle} />
       {stockOpen && nesting ? (

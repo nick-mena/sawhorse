@@ -11,6 +11,8 @@ import type { DocState, Entity } from "../kernel/types";
 import { selectionLookup } from "../lib/entities";
 import { chain, graphOf } from "../lib/scope";
 import { PanelGlyph } from "./glyphs";
+import { platformText, shortcutLabel } from "../lib/keys";
+import { menuKeys } from "../lib/shortcuts";
 
 export type OutlinerAction =
   | "edit"
@@ -312,7 +314,7 @@ export function Outliner({ state, selection, onSelect, onAction, onRename }: Out
   return (
     <div className="outliner" data-testid="outliner">
       {empty ? (
-        <p className="note">Nothing yet. Draw a shape and push it into a solid; select solids and press Ctrl+G to group them.</p>
+        <p className="note">{platformText(`Nothing yet. Draw a shape and push it into a solid; select solids and ${menuKeys("group") ? `press ${menuKeys("group")}` : "use Edit > Make Group"} to group them.`)}</p>
       ) : (
         <ul
           ref={listRef}
@@ -448,7 +450,7 @@ export function Outliner({ state, selection, onSelect, onAction, onRename }: Out
             </button>
           ) : null}
           <button type="button" role="menuitem" disabled={!sameParent || !solidsOrNodes || anyLocked} onClick={() => act("group")}>
-            Make Group <kbd>Ctrl+G</kbd>
+            Make Group {menuKeys("group") ? <kbd>{shortcutLabel(menuKeys("group")!)}</kbd> : null}
           </button>
           <button type="button" role="menuitem" disabled={!sameParent || !solidsOrNodes || anyLocked} onClick={() => act("component")}>
             Make Component…
@@ -457,7 +459,7 @@ export function Outliner({ state, selection, onSelect, onAction, onRename }: Out
             Make Unique
           </button>
           <button type="button" role="menuitem" disabled={!nodesOnly || anyLocked} onClick={() => act("explode")}>
-            Explode <kbd>Ctrl+Shift+G</kbd>
+            Explode {menuKeys("explode") ? <kbd>{shortcutLabel(menuKeys("explode")!)}</kbd> : null}
           </button>
           <hr />
           <button type="button" role="menuitem" disabled={!solidsOrNodes && !anySection} onClick={() => act(anyHidden ? "show" : "hide")}>

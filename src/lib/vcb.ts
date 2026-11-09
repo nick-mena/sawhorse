@@ -11,6 +11,7 @@
 //
 // Every tool takes the forms that make sense for it and says so when given another.
 import { parseLength, type UnitSystem } from "./units";
+import { withKey } from "./shortcuts";
 
 export type VcbValue =
   | { kind: "length"; m: number }
@@ -74,6 +75,6 @@ export function parseVcb(text: string, units: UnitSystem): VcbResult {
 
 /** The message for a form a tool does not take. */
 export function notHere(v: VcbValue, tool: string, wants: string): string {
-  if (v.kind === "array" || v.kind === "divide") return "Arrays (x3, /4) follow a copy: Move (M) or Rotate (Q) with Ctrl first.";
+  if (v.kind === "array" || v.kind === "divide") return `Arrays (x3, /4) follow a copy: ${withKey("Move", "move")} or ${withKey("Rotate", "rotate")} with Ctrl first.`;
   return `${tool} takes ${wants}.`;
 }

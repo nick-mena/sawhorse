@@ -17,6 +17,7 @@ import { SheetCanvas, type PlaceRequest, type SheetCanvasHandle, type SheetToolI
 import { SheetRail } from "./SheetRail";
 import { SheetsPane, setupOf, type SheetExportKind } from "./SheetsPane";
 import { SheetTabs } from "./SheetTabs";
+import { keyOr } from "../lib/shortcuts";
 
 const ACTIVE_KEY = "sawhorse.sheet";
 const SNAP_KEY = "sawhorse.sheetSnap";
@@ -381,7 +382,7 @@ export function SheetsWorkspace(props: SheetsWorkspaceProps) {
           if (row) void apply({ op: "set_sheet", sheet: id, setup: { ...setupOf(row), name } }, () => `${row.sheet.name} renamed to ${name}.`);
         }}
         onMove={(id, to) => void apply({ op: "move_sheet", sheet: id, to }, () => `${sheetName(id)} moved.`)}
-        onDelete={(id) => void apply({ op: "delete_sheet", sheet: id }, () => `${sheetName(id)} deleted (Ctrl+Z brings it back).`)}
+        onDelete={(id) => void apply({ op: "delete_sheet", sheet: id }, () => `${sheetName(id)} deleted (${keyOr("undo", "Edit > Undo")} brings it back).`)}
       />
       <SheetRail active={tool} onSelect={setTool} />
       <section className="vp sheet-area" aria-label="Sheet">

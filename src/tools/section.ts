@@ -10,6 +10,7 @@ import type { KernelOp, V3 } from "../kernel/types";
 import { awayFromEye, reversed as turned } from "../lib/sections";
 import { add, cross, mul, unit } from "./draw";
 import { EMPTY_VIEW, Tool, inferenceLine, markerOf, type Snap, type ToolEvent, type ToolView } from "./tool";
+import { withKey } from "../lib/shortcuts";
 
 const LOCKS: Record<string, { n: V3; name: string }> = {
   ArrowRight: { n: [1, 0, 0], name: "square to red" },
@@ -144,7 +145,7 @@ export class SectionTool extends Tool {
     const p = this.preview;
     if (!p) return void h.status("Hover a face (or anywhere in the model) to place a section plane there.", true);
     const op: KernelOp = { op: "add_section", origin: p.origin, normal: p.normal };
-    const r = await h.apply(op, () => "Section plane placed: it cuts away the side its arrows point from. Move it with Move (M); right-click to reverse it or make a group from the slice.");
+    const r = await h.apply(op, () => `Section plane placed: it cuts away the side its arrows point from. Move it with ${withKey("Move", "move")}; right-click to reverse it or make a group from the slice.`);
     if (r?.outcome.kind === "section_added") h.setSelection([{ kind: "section", section: r.outcome.section }]);
   }
 

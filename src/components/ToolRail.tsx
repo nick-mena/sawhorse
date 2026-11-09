@@ -1,5 +1,7 @@
 import { TOOL_GROUPS, type BuiltinToolId, type ToolDef, type ToolId } from "../lib/tools";
 import { PLUGIN_GLYPH, TOOL_GLYPHS } from "./glyphs";
+import { shortcutLabel } from "../lib/keys";
+import { menuKeys, useShortcutsVersion } from "../lib/shortcuts";
 
 export interface ToolRailProps {
   active: ToolId;
@@ -13,31 +15,42 @@ function glyph(t: ToolDef) {
   return TOOL_GLYPHS[t.id as BuiltinToolId];
 }
 
+/** A built-in tool's key: the name for tooltips and what the small cap in the rail shows. */
+function builtinKey(t: ToolDef): { name: string; cap: string } | null {
+  const combo = menuKeys(t.id as BuiltinToolId);
+  if (!combo) return null;
+  return { name: combo, cap: combo === "Space" ? "␣" : shortcutLabel(combo) };
+}
+
 export function ToolRail({ active, onSelect, plugins = [] }: ToolRailProps) {
+  useShortcutsVersion();
   const groups = plugins.length ? [...TOOL_GROUPS, plugins] : TOOL_GROUPS;
   return (
     <aside className="rail" aria-label="Tools">
       {groups.map((group, gi) => (
         <div className="grp" key={gi} data-group={gi === TOOL_GROUPS.length ? "plugins" : undefined} aria-label={gi === TOOL_GROUPS.length ? "Plugin tools" : undefined}>
-          {group.map((t) => (
+          {group.map((t) => {
+            const key = t.plugin ? null : builtinKey(t);
+            return (
             <button
               key={t.id}
               type="button"
               className="tool"
               data-tool={t.id}
               aria-pressed={active === t.id}
-              aria-keyshortcuts={t.plugin ? undefined : t.key === " " ? "Space" : t.keyCap || undefined}
-              title={t.plugin ? `${t.label} (${t.plugin})${t.keyCap ? ` ${t.keyCap}` : ""}` : t.key ? `${t.label} (${t.key === " " ? "Space" : t.keyCap})` : t.label}
+              aria-keyshortcuts={key?.name}
+              title={t.plugin ? `${t.label} (${t.plugin})${t.keyCap ? ` ${t.keyCap}` : ""}` : key ? `${t.label} (${key.name})` : t.label}
               onClick={() => onSelect(t.id)}
             >
               {/* Lane 12's Section Plane has no key: no key cap. */}
-              {t.plugin || t.keyCap ? <kbd>{t.plugin ? "" : t.keyCap}</kbd> : null}
+              {t.plugin || key ? <kbd>{key?.cap ?? ""}</kbd> : null}
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 {glyph(t)}
               </svg>
               <small>{t.label}</small>
             </button>
-          ))}
+            );
+          })}
         </div>
       ))}
     </aside>

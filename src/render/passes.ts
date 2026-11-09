@@ -15,6 +15,7 @@
 import * as THREE from "three";
 import type { MaterialInfo, MeshData } from "../kernel/types";
 import { bytesToBase64, encodeGreyPng } from "./png";
+import { withKey } from "../lib/shortcuts";
 
 export interface CaptureSource {
   renderer: THREE.WebGLRenderer;
@@ -213,7 +214,7 @@ export async function renderPasses(src: CaptureSource, long = 1024): Promise<Ren
       if (d < dmin) dmin = d;
       if (d > dmax) dmax = d;
     }
-    if (modelPixels === 0) throw new NothingToRenderError("The model is out of view. Zoom extents (Shift+Z) and render again.");
+    if (modelPixels === 0) throw new NothingToRenderError(`The model is out of view. ${withKey("Zoom extents", "zoomExtents")} and render again.`);
     const span = Math.max(1, dmax - dmin);
     const depth = new Uint16Array(width * height);
     const preview = new Uint8ClampedArray(width * height * 4);

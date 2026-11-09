@@ -227,6 +227,15 @@ export function usePlugins({ bridge, toolHost, scene, selection, toolId, units, 
     return items;
   }, [manager, version, bridge, showPane, installZip, loadFolder]);
 
+  /** The running plugins' keys, for Edit > Keyboard Shortcuts…. */
+  const shortcutList = useMemo(() => {
+    void version;
+    const list: { label: string; keys: string }[] = [];
+    for (const c of manager.commands.values()) if (c.shortcut) list.push({ label: `${c.pluginName}: ${c.title}`, keys: c.shortcut });
+    for (const t of manager.tools.values()) if (t.shortcut) list.push({ label: `${t.pluginName}: ${t.def.title}`, keys: t.shortcut });
+    return list;
+  }, [manager, version]);
+
   /** A plugin shortcut (Alt+Shift+C ...): returns whether it was one. */
   const shortcut = useCallback(
     (e: KeyboardEvent): boolean => {
@@ -264,5 +273,5 @@ export function usePlugins({ bridge, toolHost, scene, selection, toolId, units, 
 
   const dialogs: ReactNode = dialog ? <PluginDialog state={dialog} onClose={closeDialog} /> : null;
 
-  return { manager, version, toolDefs, toolFor, menu, shortcut, pane, dialogs, documentOpened };
+  return { manager, version, toolDefs, toolFor, menu, shortcut, shortcutList, pane, dialogs, documentOpened };
 }
