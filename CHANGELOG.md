@@ -4,6 +4,40 @@ All notable changes to Sawhorse are recorded here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added (keyboard shortcuts, macOS fork, 2026-11-08)
+
+- **Edit > Keyboard Shortcuts… shows every key and lets you change the tool, file and edit keys.** Click a key, press the new one, and it applies at once, saved on this device. The page refuses keys that would break typing or belong to the system, asks before taking a key from another command, and can reset one key or all of them. The menus, tool rail, tooltips and status messages name the keys you chose. Esc, Delete, Enter, the arrows and tapped modifiers stay fixed and are listed for reference, along with any running plugin's keys.
+- Tests: `src/lib/shortcuts.test.ts`, `src/components/ShortcutsDialog.test.tsx`, `e2e/shortcuts.spec.ts`.
+
+### Changed (typeface, macOS fork, 2026-11-08)
+
+- **The interface is set in one open humanist family, in the manner of a professional 3D package.** Open Sans replaces Barlow Condensed and IBM Plex Sans for every label and reading size, and labels are sentence case with no tracking in place of condensed capitals. Noto Sans Mono replaces IBM Plex Mono and is now kept for columns of numbers, typed values and code. Both are bundled under the SIL Open Font License; no Autodesk font is used or included.
+
+### Added (pointer and trackpad, macOS fork, 2026-11-08)
+
+- **The pointer shows the active tool.** Over the 3D view it is a small crosshair on the exact point with the tool's rail icon beside it; Select keeps the system arrow.
+- **Trackpad navigation on a Mac.** Swiping two fingers orbits about the point under the cursor, where it used to zoom, at a speed set in Edit > Settings (10% to 150% of a mouse drag, starting at 50%); Shift+swipe pans and Cmd+swipe zooms; and pinching zooms in the desktop app, whose webview sends its own pinch events. A mouse wheel still zooms, and other systems are unchanged.
+- Tests: `src/viewport/controls.test.ts` (swipe, Shift+swipe, Cmd+swipe, mouse wheel on a Mac, both kinds of pinch), `src/viewport/navmath.test.ts` (telling a trackpad from a wheel), `src/lib/navPrefs.test.ts` and `src/components/SettingsDialog.test.tsx` (the speed setting), `e2e/navigation.spec.ts` (each tool's pointer).
+
+### Changed (Stock Stamp and trust, macOS fork, 2026-11-08)
+
+- **Every part carries one stamp.** The cut list's row number, with a letter per copy, now marks the part in the model while the Cut list is open, the cut list row, the cutting diagrams and the labels. Past 40 parts the model stays unmarked.
+- **What to buy is one ruled ticket**, in place of the number tiles. On the diagrams waste is hatched, parts stay clear, and hairlines show the grain.
+- **The file's state is always in view.** The top bar shows its name and Edited or the time it was saved, and the desktop window's title names it (a new `core:window:allow-set-title` permission).
+- **Discarding offers Save.** The desktop asks Save, Don't Save or Cancel, including on Quit; the browser still has only discard or stay. A save now says the file reads back as the model.
+- **A warm accent.** The chrome's accent is a marking rust in place of blue; the selection colour stays blue so it stands out on wood.
+- **Cut sizes are body size** (13 px), no longer the smallest text in the list. Form fields use the app's font, Settings' section headings are styled, and placeholders meet contrast.
+
+### Changed (type, macOS fork, 2026-11-08)
+
+- **One type scale.** The interface's twelve text sizes, half-pixels included, are six named roles (`--type-*` in `tokens.css`), with 11 px as the smallest. Tool labels go from 8 px to 11 px in the condensed label face, and key caps no longer fade below readable contrast.
+
+### Fixed (dialogs and Mac keys, macOS fork, 2026-11-08)
+
+- **Every dialog takes keyboard focus.** Settings and Stock opened with focus left behind them, so Esc did nothing and typing reached the tools. All five now take focus, keep Tab inside, close on Esc from any control, and return focus when they close.
+- **A Mac shows Mac shortcuts.** Menus read ⌘S and ⇧⌘Z, and hints and notes say Cmd. A tap of Cmd now toggles copying in Move and Rotate and the centre in Scale, as a tap of Ctrl does; before, only Control did.
+- Tests: `src/components/useDialogFocus.test.tsx`, `src/lib/keys.test.ts`, and `e2e/move.spec.ts` (a tap of Cmd).
+
 ### Fixed (work is never lost, macOS fork, 2026-11-08)
 
 - **A model that lost a solid can be saved** ([#21](https://github.com/sawhorse3d/sawhorse/issues/21), [#35](https://github.com/sawhorse3d/sawhorse/issues/35)). Draw two boards, delete the first, and Save refused with "the file did not read back as written: the model differs", as did anything that removed a solid (replacing a cabinet, exploding, collapsing a solid back to its sketch). Nothing was wrong with the file: the check compared a hash that includes ids, and reading a file hands out fresh ones. The check now allows for fresh ids and nothing else (`read_back_difference`, `crates/kernel/src/hash.rs`): the file must match the model rebuilt from its own snapshot, and every solid and sketch must match the live model, so a file that really differs is still refused.

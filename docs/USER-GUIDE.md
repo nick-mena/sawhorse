@@ -35,11 +35,14 @@ If an operation can't be done (for example, erasing an edge would open a solid),
 
 ## Navigating
 
-The left button belongs to the tool you are using; the middle button, the right button and the wheel move the view, whatever the tool.
+On a Mac, press Cmd wherever this guide says Ctrl; the app's own menus and hints already show Cmd. Redo is Cmd+Shift+Z.
+
+The left button belongs to the tool you are using; the middle button, the right button and the wheel move the view, whatever the tool. Over the view, the pointer shows the active tool: a small crosshair on the exact point with the tool's icon beside it (Select keeps the plain arrow).
 
 - **Orbit: middle-drag.** When you press the middle button, the point under the cursor becomes the **pivot**: a corner or a point on an edge if one is within a few pixels, else the face under the cursor, else the ground under it, else the middle of the view. A small crosshair marks it while you hold the button. The model turns around the pivot and the pivot stays exactly under the cursor for the whole drag, so you can zoom in on a joint and look at it from every side without it sliding away. Dragging across turns the model around the vertical (blue) axis; dragging up and down tips it toward or away from you, about a level axis. The tilt stops half a degree short of looking straight down or straight up, so the view never flips over, and dragging across still turns it there. Orbiting leaves the standard view (the view buttons let go).
 - **Pan: right-drag, or Shift+middle-drag.** The point you grab stays under the cursor, at its own depth: in perspective, grab the near corner of a long board and the near corner follows the cursor exactly. Pressing or releasing Shift during a middle-drag switches between orbit and pan.
 - **Zoom: the wheel.** It zooms toward the cursor: the point under the cursor stays put. On a trackpad, pinching zooms the same way.
+- **Trackpad on a Mac:** swipe with two fingers to orbit around the point under the cursor, hold Shift and swipe to pan, and hold Cmd and swipe up or down to zoom toward the cursor, or pinch to zoom. A mouse wheel still zooms. **Edit > Settings…** sets how fast a swipe orbits.
 - **Touch:** one finger orbits around the point under it; two fingers pan, and pinch to zoom around their midpoint.
 - **Zoom Extents (Shift+Z)** frames the whole model; the **standard views** (Iso, Top, Front, Right, Persp) frame the model and the working area around the origin. **View > Perspective** switches between parallel and perspective projection without moving the view.
 
@@ -48,6 +51,8 @@ The view keeps a look-at point on the line of sight at the depth of whatever you
 **The grid:** **View > Grid** (or **Ground grid** in the Styles pane) shows or hides the ground grid. It is part of the model's style, so it is one undo step, it is saved with the model, and each scene remembers it: going to a scene shows or hides the grid as it was when the scene was saved or last updated. Hiding the grid hides its lines only: points on the ground still snap to whole grid steps.
 
 ## Keys
+
+**Change any of these in Edit > Keyboard Shortcuts…** Click a key, then press the new one; Esc cancels. Tools and Zoom Extents use a single key, with or without Shift. File and edit commands need Cmd (Ctrl off the Mac), so they keep working while a panel has focus. Digits, X and the other characters that start a typed value stay reserved for the Measurements box, and keys the system owns (Cmd+Q, Cmd+C and so on) are refused. If a key is already in use the page asks before moving it. Your keys are saved on this device, and the tables below list the defaults.
 
 | Key | Tool | Gesture | VCB takes |
 |---|---|---|---|
@@ -320,6 +325,8 @@ So make the boards you repeat components (select, Edit > Make Component): six id
 
 Faces drawn loose, outside any group or component, are never parts. The line above the table counts them ("312 faces outside parts"); **Make parts from loose faces** puts each connected piece of them into a group of its own (named after the file: "benches 1", "benches 2"...), one undo step, nothing moved, and each becomes a part. It acts on the faces where you are: at the top level, or inside the open group or component. When the loose faces sit inside an assembly instead (a cupboard whose doors are groups but whose carcass is loose faces), the line says where ("171 faces outside parts (in Cupboard)") and offers **Open Cupboard**; once it is open, Make parts from loose faces takes them. When every face in the file is loose, the empty list says so instead of only "No parts yet".
 
+**Stamps.** Every part in the list has a numbered stamp. The same mark appears on the part in the model while the Cut list is open, on the cutting diagrams (with a letter per copy, like 4a and 4b) and on the printed labels, so a board at the saw can be traced back to the list. The numbers follow the list, so changing the parts can renumber them: print labels and diagrams together.
+
 **Leaving a part out.** Every row has a box before its name. Untick it (or right-click, **Leave out of the totals**) to keep a part listed but out of the board feet, the sheet count, the labels and the nesting: a cushion, a lamp, the hardware. Tick it again to count it. It is one undo step and is saved with the model.
 
 **Sizes** are finished sizes: thickness, width and length (T is the smallest, L the largest). **Round to** starts at **Follow units**: the nearest 1/16 in when your units are fractional inches, decimal inches or ft-in, the nearest 0.5 mm (sizes in mm) when they are metric; the menu says which ("Follow units (1/16 in)"). It also offers 1/16 in, 1/32 in and 0.5 mm outright. With decimal-inch or ft-in units the sizes are written as decimal inches (11.25 rather than 11 1/4), in the pane and in every file. A rounding you pick lasts for this session (a reload keeps it); click **Pin** beside it to keep it for next time too, and click Pin again (or go back to Follow units) to stop. Rounding only changes how sizes are written: whether a part is sheet goods, its board feet, its area and the sheet count all come from its exact size, so no rounding or unit changes a total. A part made of rectangles (a board, a dadoed side, a tenon) is measured exactly. A part that is not (a tapered leg, a moulding) is noted **shaped** and shows the box it comes out of. A mirrored copy counts in the same row, noted **handed** ("1 of 2 handed" when only some are).
@@ -445,7 +452,7 @@ A push, or a Follow Me cut, that cuts a board in two leaves two solids. The piec
 
 **Edit > Units** sets the units lengths are typed and shown in (see [Units](#the-first-ten-minutes) under The first ten minutes); the unit chip beside the Value Control Box opens the same picker.
 
-**Edit > Settings…** holds one setting today: the **render service**. Renders (and the Credits chip and the Render pane) are not part of this alpha: they appear only when a render service address is saved here and that service answers when the app starts. Without one, the line under the field says "Renders are off" and nothing about credits is shown. Nothing else in Sawhorse needs a network or an account.
+**Edit > Settings…** holds two settings. On a Mac, **Trackpad orbit speed** sets how far a two-finger swipe turns the model, from 10% to 150% of a mouse drag of the same distance; it starts at 50% and is saved on this device. The other is the **render service**. Renders (and the Credits chip and the Render pane) are not part of this alpha: they appear only when a render service address is saved here and that service answers when the app starts. Without one, the line under the field says "Renders are off" and nothing about credits is shown. Nothing else in Sawhorse needs a network or an account.
 
 ## Known limits
 
@@ -455,6 +462,6 @@ How large a model has been tried, which SketchUp files do not open, and the hard
 
 Sawhorse keeps your work in this browser as you go. If the tab closes or reloads, the status line offers **Restore unsaved work?** with Restore and Discard; Edit > Restore Unsaved Work does the same while the offer stands. Restoring brings the undo history back too.
 
-File > Save writes a `.shz` file, and that file is the lasting copy of your work. Before it replaces anything, Sawhorse reads the new file back and refuses the save if it does not match your model, so the last good copy stays. On the desktop, the previous version is kept beside it as `<name>.bak` when that can be done.
+File > Save writes a `.shz` file, and that file is the lasting copy of your work. The top bar always shows the file's name and whether it has been edited or when it was last saved. Before it replaces anything, Sawhorse reads the new file back and refuses the save if it does not match your model, so the last good copy stays. On the desktop, the previous version is kept beside it as `<name>.bak` when that can be done.
 
-Open and New ask first when the model has unsaved changes. On the desktop, so do closing the window and Quit. Anything you change while a save is under way stays marked unsaved until you save again.
+Open and New ask first when the model has unsaved changes. On the desktop, those questions offer Save, Don't Save and Cancel, and closing the window and Quit ask too. Anything you change while a save is under way stays marked unsaved until you save again.
