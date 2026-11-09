@@ -12,7 +12,7 @@
 // textured face to position its texture: three handles on the face move, turn and scale it
 // (the texture follows live; letting go is one undo step). Esc or a click off the face ends
 // positioning.
-import type { Entity, MaterialInfo, MeshPart, PaintTarget, UvXform, V3 } from "../kernel/types";
+import type { Entity, KernelOp, MaterialInfo, MeshPart, PaintTarget, UvXform, V3 } from "../kernel/types";
 import { cleanUv } from "../lib/looks";
 import { describeNode, graphOf, scopeEntity, solidsIn } from "../lib/scope";
 import { faceOf, solidName } from "../lib/names";
@@ -24,6 +24,8 @@ import { keyOr } from "../lib/shortcuts";
 export interface PaintContext {
   /** The active material (in the model or the library), null when none is chosen. */
   active(): MaterialInfo | null;
+  /** The Materials pane's Remove Paint is on: a click takes paint off instead. */
+  removing(): boolean;
   /** Paint `target` with the active material (a library material is added first, in the
    * same undo step). Resolves true when painted. */
   paint(target: PaintTarget, what: string): Promise<boolean>;
@@ -38,6 +40,8 @@ export interface PaintContext {
   /** The material a mesh part shows (with its texture size, rotation and offset). */
   materialOf(part: MeshPart): MaterialInfo | null;
 }
+
+export const REMOVE_HINT = "Click a face to take its paint off, or Ctrl+click for its whole solid.";
 
 type Plan = { target: PaintTarget; parts: number[]; what: string };
 
@@ -144,7 +148,8 @@ export class PaintTool extends Tool {
 
   activate(): void {
     const m = this.ctx.active();
-    this.host.status(m ? `Paint with ${m.name}: click a face. Alt+click picks a material up. Double-click a textured face to position its texture.` : "Choose a material in the Materials pane, or Alt+click a face to pick one up.");
+    if (this.ctx.removing()) return void this.host.status(REMOVE_HINT);
+    this.host.status(m ? `Paint with ${m.name}: click a face, or Ctrl+click for its whole solid. Alt+click picks a material up. Double-click a textured face to position its texture.` : "Choose a material in the Materials pane, or Alt+click a face to pick one up.");
   }
 
   /** Which mesh parts belong to an object. */
@@ -250,6 +255,13 @@ export class PaintTool extends Tool {
           h.status(e.picked?.entity?.kind === "region" ? "Paint goes on the faces of solids: push or pull the region first." : "Click a face to paint it.");
           return;
         }
+        if (this.ctx.removing()) {
+          this.ctx.preview(null);
+          // A face goes back to what holds it; a solid or group loses its faces' paint as well.
+          const op: KernelOp = p.target.on === "items" ? { op: "clear_paint", items: p.target.items } : { op: "paint", target: p.target, material: null };
+          void h.apply(op, () => `Paint removed from ${p.what}.`);
+          return;
+        }
         const m = this.ctx.active();
         if (!m) {
           h.status("Choose a material in the Materials pane first (or Alt+click a face to pick one up).", true);
@@ -306,7 +318,9 @@ export class PaintTool extends Tool {
     const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length;
     const cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
     const ext = Math.min(Math.max(...pts.map((p) => p[0])) - Math.min(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1])) - Math.min(...pts.map((p) => p[1])));
-    const start = info.uv ?? {};
+    // Starting from the solid's grain, written in this face's frame, keeps the first drag
+    // from swinging the texture to the frame a positioned face is measured in.
+    const start = info.uv ?? info.grain_uv ?? {};
     this.pos = { object, face, part, ...frame, normal: info.normal, centre: [cx, cy], radius: Math.max(ext * 0.3, 1e-3), mat, start, base: start, now: start, drag: null };
     this.ctx.preview(null);
     h.status("Drag the centre to move the texture, the round handle to turn it, the square one to scale it. Enter or Esc when done.");

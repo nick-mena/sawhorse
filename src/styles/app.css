@@ -437,6 +437,10 @@ button.chip:hover{border-color:var(--accent)}
 .mat-edit input[type="color"]{padding:0;height:26px}
 .mat-edit .row{grid-column:1 / -1;display:flex;gap:6px;justify-content:space-between}
 .mat-edit .note{grid-column:1 / -1}
+.mat-edit .wide{grid-column:1 / -1}
+.mat-scale{display:grid;grid-template-columns:minmax(0,1fr) 56px auto;gap:6px;align-items:center}
+.mat-scale input[type="range"]{padding:0;border:0;background:none;accent-color:var(--accent)}
+.mat-scale i{font-style:normal}
 .note.err{color:#b8432f}
 .styles .presets{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
 .styles .presets button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;border:1px solid var(--line);border-radius:6px;font-size:var(--type-micro)}

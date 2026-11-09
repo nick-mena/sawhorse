@@ -24,7 +24,7 @@ export function pushable(t: Target, state: DocState | null): boolean {
 }
 
 const CLOSED = "That is inside a group or component that is not open: double-click it (Select) to edit inside it.";
-import { EMPTY_VIEW, Tool, markerOf, type InferContext, type Snap, type ToolEvent, type ToolView } from "./tool";
+import { EMPTY_VIEW, Tool, markerOf, type InferContext, type ToolEvent, type ToolView } from "./tool";
 
 export function targetOf(e: { kind: string; object?: number; face?: number; sketch?: number; region?: number } | null): Target | null {
   if (!e) return null;
@@ -58,7 +58,6 @@ function axisKind(n: V3): InferenceKind {
 
 export class PushTool extends Tool {
   readonly id = "pushpull" as const;
-  private snap: Snap | null = null;
   private g: Gesture | null = null;
   /** The press that started the current gesture (its click does not commit). */
   private fresh = false;

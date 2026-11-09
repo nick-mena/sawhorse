@@ -131,3 +131,24 @@ test("a softened cylinder renders like its golden image", async ({ page }) => {
   expect(d.mean, `mean cell difference ${d.mean.toFixed(4)}`).toBeLessThanOrEqual(MAX_MEAN);
   expect(d.bad, `share of very different cells ${d.bad.toFixed(4)}`).toBeLessThanOrEqual(MAX_BAD);
 });
+
+test("deleting a round solid takes its outline with it", async ({ page }) => {
+  const vp = await ready(page);
+  await page.keyboard.press("c");
+  const [x, y] = await at(page, [0, 0, 0]);
+  await page.mouse.move(x, y, { steps: 2 });
+  await page.mouse.click(x, y);
+  await page.keyboard.type("6");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("p");
+  await page.keyboard.type("12");
+  await page.keyboard.press("Enter");
+  await expect(vp).toHaveAttribute("data-watertight", "true");
+  const lines = () => page.evaluate(() => (window as unknown as { __sawhorse: { styledLines(): number } }).__sawhorse.styledLines());
+  await expect.poll(lines).toBeGreaterThan(0);
+  await page.keyboard.press("Space");
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Delete");
+  await expect(page.locator("#hint")).toContainText("Erased 1 item");
+  await expect.poll(lines).toBe(0);
+});

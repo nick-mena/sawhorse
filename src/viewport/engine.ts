@@ -82,6 +82,8 @@ export interface OverlayItem {
   dashed?: boolean;
   /** Hidden behind geometry (default false: overlays always show). */
   depthTest?: boolean;
+  /** 0 to 1 (default 1). */
+  opacity?: number;
 }
 
 /** Highlighted model entities (indices into MeshData.parts; edges as world segments). */
@@ -242,7 +244,7 @@ export class ViewportEngine {
   private highlightGroup = new THREE.Group();
   private overlayGroup = new THREE.Group();
   private overlays: OverlayItem[] = [];
-  /** Content the camera was last fitted to; the view refits only when content outgrows it. */
+  /** What the clipping planes already take in (grown as the model grows). */
   private fitted: THREE.Box3 | null = null;
   private raycaster = new THREE.Raycaster();
   private theme: Theme;
@@ -271,7 +273,9 @@ export class ViewportEngine {
   private previewParts = new Set<number>();
   /** Profiles and endpoints (fat lines), rebuilt when the camera moves. */
   private styledEdges = new THREE.Group();
-  private styledEdgesKey = "";
+  /** What the camera-dependent lines were last built for; null: they must be rebuilt. "" is
+   * a real value, "none wanted", and still has to clear what an earlier mesh left drawn. */
+  private styledEdgesKey: string | null = null;
   /** The mesh's edges by how they are drawn (lane 15: soft and hidden edges apart). */
   private edgeSet: EdgeSets | null = null;
   private backdrop = makeBackdrop();
@@ -456,7 +460,7 @@ export class ViewportEngine {
     if (this.edges) (this.edges.material as THREE.LineBasicMaterial).color.set(this.ink());
     if (this.faces) this.colourFaces(this.faces.geometry);
     this.buildOverlays();
-    this.styledEdgesKey = "";
+    this.styledEdgesKey = null;
     this.rebuildHighlights();
     this.rebuildOverlays();
     this.requestRender();
@@ -679,16 +683,25 @@ export class ViewportEngine {
       this.rebuildGrid();
       this.buildAxes();
     }
-    // Refit only when the model outgrows what the camera was framed for, and then only
-    // outward (the working area and what was framed before stay in view), so drawing a
-    // small shape never zooms the camera in on it.
-    if (!this.fitted || !this.fitted.containsBox(box)) {
-      const grow = this.workingBox();
-      if (this.fitted) grow.union(this.fitted);
-      this.fit(undefined, grow);
+    // An edit never moves the camera: Open and Import frame what they bring in, and Shift+Z
+    // is one key away. Only what the camera can see reaches further, so a large shape is not
+    // cut off by the clipping planes.
+    if (this.fitted && !this.fitted.containsBox(box)) this.reachFor(box);
+    this.requestRender();
+  }
+
+  /** Widen the clipping planes to take in `box`, leaving the camera where it is. */
+  private reachFor(box: THREE.Box3): void {
+    const sphere = box.getBoundingSphere(new THREE.Sphere());
+    const reach = this.camera.position.distanceTo(sphere.center) + sphere.radius;
+    if (this.camera instanceof THREE.PerspectiveCamera) {
+      this.camera.far = Math.max(this.camera.far, reach * 2);
     } else {
-      this.requestRender();
+      this.camera.near = Math.min(this.camera.near, -reach * 2);
+      this.camera.far = Math.max(this.camera.far, reach * 2);
     }
+    this.camera.updateProjectionMatrix();
+    this.fitted!.union(box);
   }
 
   /** (Re)build the faces, the textured overlays, the inner sides of open meshes and the
@@ -794,7 +807,7 @@ export class ViewportEngine {
       this.edges.visible = this.style.edges.edges;
       this.scene.add(this.edges);
     }
-    this.styledEdgesKey = "";
+    this.styledEdgesKey = null;
     this.updateSun();
     // Fresh state textures: the highlight shown goes back in.
     this.applyHighlightState(this.highlight);
@@ -1402,8 +1415,14 @@ varying float vOwnerState;`,
 
   private rebuildOverlays(): void {
     for (const c of [...this.overlayGroup.children]) disposeObject(c);
+    // One object per look, not per item: a file may hold 50,000 guides, and as many objects
+    // would freeze the page.
+    const batches = new Map<string, { it: OverlayItem; pairs: Vec3[][] }>();
     for (const it of this.overlays) {
-      const pairs: Vec3[][] = [];
+      const key = `${it.color}|${it.width ?? 2}|${!!it.dashed}|${!!it.depthTest}|${it.opacity ?? 1}`;
+      let batch = batches.get(key);
+      if (!batch) batches.set(key, (batch = { it, pairs: [] }));
+      const { pairs } = batch;
       const p = it.points;
       if (it.kind === "segments") {
         for (let i = 0; i + 1 < p.length; i += 2) pairs.push([p[i], p[i + 1]]);
@@ -1411,8 +1430,10 @@ varying float vOwnerState;`,
         for (let i = 0; i + 1 < p.length; i++) pairs.push([p[i], p[i + 1]]);
         if (it.kind === "loop" && p.length > 2) pairs.push([p[p.length - 1], p[0]]);
       }
+    }
+    for (const { it, pairs } of batches.values()) {
       if (!pairs.length) continue;
-      const l = this.fatLines(pairs, it.color, it.width ?? 2, !!it.dashed, !!it.depthTest);
+      const l = this.fatLines(pairs, it.color, it.width ?? 2, !!it.dashed, !!it.depthTest, it.opacity ?? 1);
       l.renderOrder = 10;
       this.overlayGroup.add(l);
     }
@@ -1816,7 +1837,9 @@ varying float vOwnerState;`,
     const ground = ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), new THREE.Vector3());
     if (ground) {
       const span = this.pixelAtTarget() * Math.max(this.size.w, this.size.h);
-      const reach = 50 * Math.max(this.contentBox().getBoundingSphere(new THREE.Sphere()).radius, span);
+      // Near the horizon the ground under the cursor can be far beyond the model: turning or
+      // dragging about a point out there swings the view wildly, so only near ground counts.
+      const reach = Math.max(2 * this.contentBox().getBoundingSphere(new THREE.Sphere()).radius, span);
       if (ground.distanceTo(this.controls.target) <= reach) return [ground.x, ground.y, ground.z];
     }
     return null;
@@ -1901,6 +1924,11 @@ varying float vOwnerState;`,
 
   /** Edge segments by how they are drawn (lane 15), and whether the faces carry smooth
    * normals: a test and capture hook. */
+  /** The camera-dependent lines drawn now (profiles, a round solid's outline). */
+  styledLineCount(): number {
+    return this.styledEdges.children.length;
+  }
+
   edgeCounts(): { hard: number; soft: number; hidden: number; smoothNormals: boolean } {
     const m = this.meshData;
     const s = this.edgeSet;

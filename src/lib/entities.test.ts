@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { DocState, Entity, MeshData } from "../kernel/types";
-import { applySelection, boxSelect, entityKey, eraseOp, eraseOps, highlightFor, modeFor, objectEdges, partsOf, selectionLookup, toSketch, fromSketch } from "./entities";
+import { applySelection, boxSelect, entityKey, eraseOp, eraseOps, highlightFor, looseStrokes, modeFor, objectEdges, partsOf, selectionLookup, toSketch, fromSketch } from "./entities";
 import { meshIndex, ownerEdgeCount, ownerSegments } from "./meshIndex";
 
 // Two parts: face 2 of solid 1 (a unit square at z = 1, two triangles) and region 4 of the
@@ -155,5 +155,22 @@ describe("window and crossing selection", () => {
     expect(none).toEqual([]);
     const edgeOnly = boxSelect(mesh(), toScreen, { x0: 360, y0: 5, x1: 340, y1: -5 }, true);
     expect(edgeOnly.map((e) => e.kind).sort()).toEqual(["edge", "region"]);
+  });
+});
+
+describe("looseStrokes", () => {
+  // A triangle region on sketch 7, its three sides drawn, and one stray line beside it.
+  const m = {
+    positions: new Float32Array([0, 0, 0, 1, 0, 0, 0, 1, 0]),
+    indices: new Uint32Array([0, 1, 2]),
+    faceIds: new Uint32Array([0]),
+    parts: [{ kind: "region", owner: 7, index: 1 }],
+    edges: new Float32Array([0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 2, 2, 0, 3, 3, 0]),
+    edgeOwner: new Uint32Array([0, 0, 0, 0]),
+    edgeOwners: [{ kind: "sketch", id: 7 }],
+  } as unknown as MeshData;
+
+  it("names only the line that bounds no region", () => {
+    expect(looseStrokes(m)).toEqual([{ kind: "edge", owner: { kind: "sketch", id: 7 }, a: [2, 2, 0], b: [3, 3, 0], drawn: true }]);
   });
 });

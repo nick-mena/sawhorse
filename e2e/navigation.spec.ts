@@ -221,3 +221,17 @@ test("the ground grid follows the units, and sketch regions draw over it", async
     }, want);
   await expect.poll(worst).toBeLessThanOrEqual(3);
 });
+
+test("an edit never moves the camera, however large it is", async ({ page }) => {
+  const vp = await ready(page);
+  const before = await cam(page);
+  await page.keyboard.press("r");
+  await page.keyboard.type("400,300");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("p");
+  await page.keyboard.type("200");
+  await page.keyboard.press("Enter");
+  await expect(vp).toHaveAttribute("data-watertight", "true");
+  await page.waitForTimeout(100);
+  expect(await cam(page)).toEqual(before);
+});

@@ -8,7 +8,10 @@ import type { DocState, LibraryEntry, MaterialDef, MaterialInfo, StockLink } fro
 import { hexRgb, rgbHex, searchLibrary } from "../lib/looks";
 import { formatLength, parseLength, type UnitSystem } from "../lib/units";
 
-export type ActiveRef = { from: "model" | "library"; name: string } | null;
+/** `remove`: the Paint tool takes paint off rather than putting a material on. */
+export type ActiveRef = { from: "model" | "library" | "remove"; name: string } | null;
+
+export const REMOVE_PAINT: NonNullable<ActiveRef> = { from: "remove", name: "Remove Paint" };
 
 export interface MaterialsPaneProps {
   state: DocState | null;
@@ -17,6 +20,8 @@ export interface MaterialsPaneProps {
   swatch: (s: { library?: string; texture?: string | null }) => string | null;
   active: ActiveRef;
   onActive: (a: ActiveRef) => void;
+  /** Turn on Remove Paint and take up the Paint tool. */
+  onRemovePaint: () => void;
   /** Replace a model material's definition (live edits commit on change). */
   onDefine: (def: MaterialDef) => void;
   onRename: (name: string, to: string) => void;
@@ -58,7 +63,7 @@ export function defOf(m: MaterialInfo, change: Partial<MaterialDef> = {}): Mater
   };
 }
 
-export function MaterialsPane({ state, library, swatch, active, onActive, onDefine, onRename, onDelete, onImport, onPosition, units }: MaterialsPaneProps) {
+export function MaterialsPane({ state, library, swatch, active, onActive, onRemovePaint, onDefine, onRename, onDelete, onImport, onPosition, units }: MaterialsPaneProps) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -67,6 +72,7 @@ export function MaterialsPane({ state, library, swatch, active, onActive, onDefi
   const current = active?.from === "model" ? models.find((m) => m.name === active.name) : undefined;
   const fromLib = active?.from === "library" ? library.find((e) => e.name === active.name) : undefined;
   const activeColor = current?.color ?? fromLib?.color ?? [200, 200, 200, 255];
+  const removing = active?.from === "remove";
   const activeImage = current ? (current.held ? swatch({ texture: current.texture }) : null) : fromLib ? swatch({ library: fromLib.name }) : null;
 
   return (
@@ -75,8 +81,11 @@ export function MaterialsPane({ state, library, swatch, active, onActive, onDefi
         <Swatch color={activeColor} image={activeImage} size={40} />
         <div>
           <b>{active?.name ?? "No material"}</b>
-          <small>{active ? (active.from === "library" ? "Library: added to the model when you paint with it" : `In the model${current?.used ? `, on ${current.used} face${current.used === 1 ? "" : "s"}` : ""}`) : "Pick one below, or Alt+click a face with Paint (B)."}</small>
+          <small>{removing ? "Click a face with Paint to take its paint off." : active ? (active.from === "library" ? "Library: added to the model when you paint with it" : `In the model${current?.used ? `, on ${current.used} face${current.used === 1 ? "" : "s"}` : ""}`) : "Pick one below, or Alt+click a face with Paint (B)."}</small>
         </div>
+        <button type="button" className="mini" aria-pressed={removing} onClick={() => (removing ? onActive(null) : onRemovePaint())}>
+          Remove Paint
+        </button>
       </div>
 
       {models.length ? (
@@ -101,7 +110,7 @@ export function MaterialsPane({ state, library, swatch, active, onActive, onDefi
         </>
       ) : null}
 
-      {current ? <Editor key={current.name} m={current} onDefine={onDefine} onRename={onRename} onDelete={onDelete} onPosition={onPosition} units={units} taken={models.map((x) => x.name)} /> : null}
+      {current ? <Editor key={current.name} m={current} nominal={library.find((e) => e.name === current.name)?.size?.[0] ?? DEFAULT_TEXTURE_WIDTH} onDefine={onDefine} onRename={onRename} onDelete={onDelete} onPosition={onPosition} units={units} taken={models.map((x) => x.name)} /> : null}
 
       <h4>Library</h4>
       <div className="mat-search">
@@ -154,7 +163,12 @@ export function MaterialsPane({ state, library, swatch, active, onActive, onDefi
   );
 }
 
-function Editor({ m, onDefine, onRename, onDelete, onPosition, units, taken }: { m: MaterialInfo; onDefine: (d: MaterialDef) => void; onRename: (a: string, b: string) => void; onDelete: (n: string) => void; onPosition: (() => void) | null; units: UnitSystem; taken: string[] }) {
+/** One foot across: what 100% is for a material that did not come from the library, as the
+ * kernel sizes a texture that names no size. */
+const DEFAULT_TEXTURE_WIDTH = 0.3048;
+const SCALE_SLIDER = { min: 10, max: 400, step: 5 };
+
+function Editor({ m, nominal, onDefine, onRename, onDelete, onPosition, units, taken }: { m: MaterialInfo; nominal: number; onDefine: (d: MaterialDef) => void; onRename: (a: string, b: string) => void; onDelete: (n: string) => void; onPosition: (() => void) | null; units: UnitSystem; taken: string[] }) {
   const [name, setName] = useState(m.name);
   const size = m.size ?? [0.3048, 0.3048];
   const [w, setW] = useState(formatLength(size[0], units));
@@ -162,6 +176,18 @@ function Editor({ m, onDefine, onRename, onDelete, onPosition, units, taken }: {
   const [rot, setRot] = useState(String(Math.round((m.rotation ?? 0) * 10) / 10));
   const [species, setSpecies] = useState(m.stock?.species ?? "");
   const [problem, setProblem] = useState<string | null>(null);
+  const [locked, setLocked] = useState(true);
+  const percent = Math.round((size[0] / nominal) * 1000) / 10;
+  const [scale, setScale] = useState(String(percent));
+  useEffect(() => setScale(String(percent)), [percent]);
+  const offset = m.offset ?? [0, 0];
+  const [ox, setOx] = useState(formatLength(offset[0], units));
+  const [oy, setOy] = useState(formatLength(offset[1], units));
+  useEffect(() => {
+    setOx(formatLength(offset[0], units));
+    setOy(formatLength(offset[1], units));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offset[0], offset[1], units]);
   useEffect(() => {
     setW(formatLength(size[0], units));
     setH(formatLength(size[1], units));
@@ -185,10 +211,33 @@ function Editor({ m, onDefine, onRename, onDelete, onPosition, units, taken }: {
       else setH(formatLength(size[1], units));
       return;
     }
-    // The other side follows to keep the image's shape.
-    const k = r.metres / size[which];
+    // With the lock on, the other side follows to keep the image's shape.
+    const k = locked ? r.metres / size[which] : 1;
     const next: [number, number] = which === 0 ? [r.metres, size[1] * k] : [size[0] * k, r.metres];
     onDefine(defOf(m, { size: next }));
+  };
+  /** A slider's drag and a field's Enter-then-blur each end in one commit: one undo step. */
+  const commitScale = (text: string) => {
+    const v = Number(text);
+    if (text.trim() === "" || !Number.isFinite(v) || v <= 0) {
+      setProblem("Scale is a percentage above zero.");
+      setScale(String(percent));
+      return;
+    }
+    setProblem(null);
+    if (Math.abs(v - percent) < 0.05) return;
+    const k = v / percent;
+    onDefine(defOf(m, { size: [size[0] * k, size[1] * k] }));
+  };
+  const commitOffset = (which: 0 | 1, text: string) => {
+    const r = parseLength(text, units);
+    if (!r.ok) {
+      setProblem(r.error);
+      return;
+    }
+    setProblem(null);
+    if (Math.abs(r.metres - offset[which]) <= 1e-9) return;
+    onDefine(defOf(m, { offset: which === 0 ? [r.metres, offset[1]] : [offset[0], r.metres] }));
   };
   const stockKind = m.stock?.kind ?? "none";
   const setStock = (kind: string, sp: string) => {
@@ -219,6 +268,24 @@ function Editor({ m, onDefine, onRename, onDelete, onPosition, units, taken }: {
       </label>
       {m.held ? (
         <>
+          <label className="wide">
+            Scale
+            <span className="mat-scale">
+              <input
+                type="range"
+                aria-label="Texture scale slider"
+                min={SCALE_SLIDER.min}
+                max={SCALE_SLIDER.max}
+                step={SCALE_SLIDER.step}
+                value={Math.min(SCALE_SLIDER.max, Math.max(SCALE_SLIDER.min, Number(scale) || SCALE_SLIDER.min))}
+                onChange={(e) => setScale(e.target.value)}
+                onPointerUp={(e) => commitScale(e.currentTarget.value)}
+                onKeyUp={(e) => commitScale(e.currentTarget.value)}
+              />
+              <input aria-label="Texture scale percent" inputMode="decimal" value={scale} onChange={(e) => setScale(e.target.value)} onBlur={() => commitScale(scale)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+              <i aria-hidden="true">%</i>
+            </span>
+          </label>
           <label>
             Texture width
             <input aria-label="Texture width" value={w} onChange={(e) => setW(e.target.value)} onBlur={() => commitSize(0, w)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
@@ -226,6 +293,17 @@ function Editor({ m, onDefine, onRename, onDelete, onPosition, units, taken }: {
           <label>
             Height
             <input aria-label="Texture height" value={h} onChange={(e) => setH(e.target.value)} onBlur={() => commitSize(1, h)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+          </label>
+          <button type="button" className="mini wide" aria-pressed={locked} onClick={() => setLocked(!locked)} title="With this on, changing the width or height changes the other to keep the image's shape">
+            Keep proportions
+          </button>
+          <label>
+            Offset X
+            <input aria-label="Texture offset X" value={ox} onChange={(e) => setOx(e.target.value)} onBlur={() => commitOffset(0, ox)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
+          </label>
+          <label>
+            Offset Y
+            <input aria-label="Texture offset Y" value={oy} onChange={(e) => setOy(e.target.value)} onBlur={() => commitOffset(1, oy)} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
           </label>
           <label>
             Rotation

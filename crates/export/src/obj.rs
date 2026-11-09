@@ -14,6 +14,7 @@ use std::fmt::Write as _;
 
 use glam::{DVec2, DVec3};
 use sawhorse_kernel::Model;
+use sawhorse_kernel::looks::solid_grain;
 use sawhorse_kernel::object::Object;
 use sawhorse_tessellate::triangulate;
 
@@ -145,7 +146,10 @@ pub fn document(model: &Model, scope: &Scope, mtl_file: &str) -> Result<String, 
         let _ = writeln!(out, "o {name}\ng {name}");
         let ids = o.brep().persistent_face_ids();
         let mats: Vec<Option<&str>> = ids.iter().map(|&f| model.face_material(*id, f)).collect();
-        let textured = ids.iter().any(|&f| model.face_texture(*id, f).is_some());
+        let grain = solid_grain(o.brep());
+        let textured = ids
+            .iter()
+            .any(|&f| model.face_texture_with(*id, f, grain.as_ref()).is_some());
         // Lane 15: smooth edges become OBJ smoothing groups (`s 1`, `s off`), which every
         // importer turns back into shared normals.
         let groups = o.smoothing_groups();
@@ -184,7 +188,7 @@ pub fn document(model: &Model, scope: &Scope, mtl_file: &str) -> Result<String, 
                 );
                 current = Some(mats[k]);
             }
-            match model.face_texture(*id, ids[k]) {
+            match model.face_texture_with(*id, ids[k], grain.as_ref()) {
                 Some(t) => {
                     // One vt per point of this face (its own texture coordinates).
                     let pts: Vec<usize> = std::iter::once(&face.0)

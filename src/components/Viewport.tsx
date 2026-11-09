@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { MeshData, MeshPart } from "../kernel/types";
 import type { Vec3 } from "../lib/edit";
 import { INFERENCE_STYLES, LEGEND_KINDS, type InferenceKind } from "../lib/inferenceStyle";
+import { navClaimsLeft } from "../lib/navPrefs";
 import type { UnitSystem } from "../lib/units";
 import { NO_HIGHLIGHT, ViewportEngine, webgl2Available, type Highlight, type OverlayItem, type Projection, type ViewId } from "../viewport/engine";
 
@@ -94,6 +95,7 @@ export interface SawhorseHooks {
   engineTriangles(): number;
   /** Lane 15: edge segments drawn as lines, soft, hidden; whether smooth normals came. */
   edgeCounts(): ReturnType<ViewportEngine["edgeCounts"]>;
+  styledLines(): number;
   /** Lane 15: the grid's line colours (they follow the style's background). */
   gridColours(): ReturnType<ViewportEngine["gridColours"]>;
   /** Lane 16b: what the highlight draws (fat segments; solids and parts drawn from the state textures). */
@@ -104,6 +106,9 @@ export interface SawhorseHooks {
   /** Lane 21: the gesture under way and the orbit pivot (null when not orbiting). */
   nav(): ReturnType<ViewportEngine["navState"]>;
 }
+
+/** Less movement than this between an Alt press and release is a click, not a camera drag. */
+const ALT_CLICK_PX = 4;
 
 export function Viewport(props: ViewportProps) {
   const { mesh, units, view, viewSeq, projection, fitSeq, hud, kernel, info, highlight, overlay, marker, labels, box, cursor, selectionCount, hoverKind, onPointer, onCamera, onEngine } = props;
@@ -148,6 +153,7 @@ export function Viewport(props: ViewportProps) {
       frameTime: (n) => engine.benchmark(n),
       engineTriangles: () => (engine.captureSource().mesh?.indices.length ?? 0) / 3,
       edgeCounts: () => engine.edgeCounts(),
+      styledLines: () => engine.styledLineCount(),
       gridColours: () => engine.gridColours(),
       highlightCounts: () => engine.highlightCounts(),
       navPick: (x, y, snap) => engine.navPick(x, y, snap ?? true),
@@ -221,6 +227,7 @@ export function Viewport(props: ViewportProps) {
     engineRef.current?.setOverlay(overlay ?? []);
   }, [overlay]);
 
+  const altPress = useRef<[number, number] | null>(null);
   const local = (e: React.PointerEvent<HTMLCanvasElement> | React.MouseEvent<HTMLCanvasElement>): [number, number] => {
     const rect = e.currentTarget.getBoundingClientRect();
     return [e.clientX - rect.left, e.clientY - rect.top];
@@ -273,9 +280,22 @@ export function Viewport(props: ViewportProps) {
         onPointerMove={(e) => send("move", e)}
         onPointerDown={(e) => {
           if (e.button === 1) e.preventDefault(); // no autoscroll on middle press
+          if (navClaimsLeft(e)) {
+            altPress.current = [e.clientX, e.clientY];
+            return;
+          }
           send("down", e);
         }}
-        onPointerUp={(e) => send("up", e)}
+        onPointerUp={(e) => {
+          const at = altPress.current;
+          if (at) {
+            altPress.current = null;
+            // Alt+click without a drag is still the tool's (Paint's sample, for one).
+            if (Math.hypot(e.clientX - at[0], e.clientY - at[1]) >= ALT_CLICK_PX) return;
+            send("down", e);
+          }
+          send("up", e);
+        }}
         onDoubleClick={(e) => send("dblclick", e)}
         onPointerLeave={(e) => send("leave", e)}
         onContextMenu={(e) => e.preventDefault()}

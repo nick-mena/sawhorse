@@ -42,9 +42,8 @@ export async function at(page: Page, p: V3, dx = 0, dy = 0): Promise<[number, nu
 }
 
 /**
- * Move to a point (inches) and wait for the inference the click should land on. The view
- * may refit right after an edit (it grows to fit new solids), so the screen position is
- * recomputed and the cursor nudged until the inference shows.
+ * Move to a point (inches) and wait for the inference the click should land on. The screen
+ * position is recomputed and the cursor nudged until the inference shows.
  */
 export async function hover(page: Page, p: V3, kind: string | RegExp, dx = 1, dy = -1, attr = "data-inference") {
   await expect(async () => {

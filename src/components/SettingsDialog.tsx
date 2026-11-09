@@ -4,7 +4,8 @@
 import { useState } from "react";
 import { checkServiceUrl, gateLine, type GateStatus } from "../credits/gate";
 import { useDialogFocus } from "./useDialogFocus";
-import { ORBIT_SPEED, setTrackpadOrbitSpeed, swipeOrbits, trackpadOrbitSpeed } from "../lib/navPrefs";
+import { ORBIT_SPEED, navStyle, setNavStyle, setTrackpadOrbitSpeed, swipeOrbits, trackpadOrbitSpeed, type NavStyle } from "../lib/navPrefs";
+import { isMac } from "../lib/keys";
 
 export interface SettingsDialogProps {
   url: string | null;
@@ -18,6 +19,7 @@ export function SettingsDialog({ url, status, onUrl, onRecheck, onClose }: Setti
   const [text, setText] = useState(url ?? "");
   const [err, setErr] = useState<string | null>(null);
   const [orbitSpeed, setOrbitSpeed] = useState(trackpadOrbitSpeed);
+  const [style, setStyle] = useState<NavStyle>(navStyle);
   const dialog = useDialogFocus();
   const save = () => {
     const r = checkServiceUrl(text);
@@ -43,9 +45,29 @@ export function SettingsDialog({ url, status, onUrl, onRecheck, onClose }: Setti
       <header>
         <b>Settings</b>
       </header>
+      <h5>Navigation</h5>
+      <label>
+        <span>Camera style</span>
+        <select
+          aria-label="Camera style"
+          value={style}
+          onChange={(e) => {
+            const v = e.currentTarget.value as NavStyle;
+            setStyle(v);
+            setNavStyle(v);
+          }}
+        >
+          <option value="sawhorse">Sawhorse</option>
+          <option value="maya">Maya</option>
+        </select>
+      </label>
+      <p className="note">
+        {style === "maya"
+          ? `${isMac() ? "Option" : "Alt"} with the left, middle or right button tumbles, tracks and dollies; add Shift to hold to one axis. Orbits turn about the centre of the view. ${isMac() ? "Option" : "Alt"} no longer toggles autofold in Move.`
+          : "Orbits, pans and zooms act on the point under the cursor."}
+      </p>
       {swipeOrbits() ? (
         <>
-          <h5>Navigation</h5>
           <label>
             <span>Trackpad orbit speed</span>
             <input

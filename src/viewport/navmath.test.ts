@@ -10,6 +10,8 @@ import {
   cross,
   depthOf,
   dot,
+  ORBIT_RATE,
+  dollyFactor,
   dragAngles,
   elevation,
   elevationStep,
@@ -94,7 +96,7 @@ describe("orbit about a picked pivot", () => {
     let pose = poseLooking([-0.5, -0.9, 0.9], [0.31, 0.21, 0.29]);
     const before = projectNdc(pose, PERSP, pivot);
     for (let i = 0; i < 4000; i++) {
-      const a = dragAngles(i % 7 === 0 ? -3 : 2, i % 5 === 0 ? 9 : -1, 720);
+      const a = dragAngles(i % 7 === 0 ? -3 : 2, i % 5 === 0 ? 9 : -1);
       pose = orbit(pose, pivot, a.azimuth, a.elevation).pose;
     }
     expect(ndcDistance(before, projectNdc(pose, PERSP, pivot))).toBeLessThan(1e-9);
@@ -121,16 +123,27 @@ describe("orbit about a picked pivot", () => {
     }
   });
 
+  it("turns a set angle per pixel whatever the window's size", () => {
+    expect(dragAngles(100, 0).azimuth).toBeCloseTo((-40 * Math.PI) / 180, 12);
+    expect(dragAngles(0, 100).elevation).toBeCloseTo((40 * Math.PI) / 180, 12);
+  });
+
+  it("dollies by a ratio: in to the right and down, out the other way, and back again", () => {
+    expect(dollyFactor(50, 0)).toBeGreaterThan(1);
+    expect(dollyFactor(0, -50)).toBeLessThan(1);
+    expect(dollyFactor(70, 10) * dollyFactor(-70, -10)).toBeCloseTo(1, 12);
+  });
+
   it("dragging right turns the model right; dragging down raises the eye", () => {
     const pivot: Vec3 = [0, 0, 0];
     const pose = poseLooking([0, -2, 1], pivot);
-    const right = dragAngles(100, 0, 600);
+    const right = dragAngles(100, 0);
     // The model turns right: a point in front of the pivot (toward the eye) moves right.
     const front: Vec3 = [0, -0.3, 0];
     const p0 = projectNdc(pose, PERSP, front);
     const p1 = projectNdc(orbit(pose, pivot, right.azimuth, right.elevation).pose, PERSP, front);
     expect(p1[0]).toBeGreaterThan(p0[0]);
-    const down = dragAngles(0, 100, 600);
+    const down = dragAngles(0, 100);
     const raised = orbit(pose, pivot, down.azimuth, down.elevation).pose;
     expect(raised.eye[2]).toBeGreaterThan(pose.eye[2]);
     expect(elevation(raised.fwd)).toBeGreaterThan(elevation(pose.fwd));
@@ -142,7 +155,7 @@ describe("orbit about a picked pivot", () => {
       let pose = poseLooking([1, -1, 0.8], pivot);
       // 2000 px of drag in 10 px steps on a 600 px view: ~21 turns' worth of elevation.
       for (let i = 0; i < 200; i++) {
-        const a = dragAngles(0, 10 * dir, 600);
+        const a = dragAngles(0, 10 * dir);
         pose = orbit(pose, pivot, a.azimuth, a.elevation).pose;
         expect(pose.up[2]).toBeGreaterThan(0);
         expect(Math.abs(elevation(pose.fwd))).toBeLessThanOrEqual(ELEVATION_LIMIT + 1e-12);
@@ -150,13 +163,13 @@ describe("orbit about a picked pivot", () => {
       }
       expect(Math.abs(elevation(pose.fwd))).toBeCloseTo(ELEVATION_LIMIT, 12);
       // ... and the azimuth still turns the view there (no lock).
-      const a = dragAngles(150, 0, 600);
+      const a = dragAngles(150, 0);
       const turned = orbit(pose, pivot, a.azimuth, a.elevation).pose;
       expect(dot(turned.right, pose.right)).toBeLessThan(Math.cos(1));
       // Coming back responds at once (the overshoot is not banked).
-      const back = dragAngles(0, -10 * dir, 600);
+      const back = dragAngles(0, -10 * dir);
       const b = orbit(turned, pivot, back.azimuth, back.elevation);
-      expect(Math.abs(b.elevation)).toBeCloseTo((2 * Math.PI * 10) / 600, 12);
+      expect(Math.abs(b.elevation)).toBeCloseTo(10 * ORBIT_RATE, 12);
     }
   });
 

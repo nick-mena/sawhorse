@@ -11,7 +11,7 @@ use glam::{DVec2, DVec3};
 use sawhorse_tessellate::{TessellateError, triangulate};
 
 use crate::ids::to_public;
-use crate::looks::{texture_frame, texture_uv};
+use crate::looks::{face_frame, grain_uv, solid_grain, texture_uv};
 use crate::meshbuild::LooseMesh;
 use crate::model::Model;
 use crate::object::Object;
@@ -52,6 +52,10 @@ pub struct MeshPart {
     /// from it).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uv: Option<crate::looks::UvXform>,
+    /// A textured face that was never positioned: its default look as a positioning in the
+    /// face's own frame, when the two differ (the texture handles start from it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub grain_uv: Option<crate::looks::UvXform>,
 }
 
 impl MeshPart {
@@ -68,6 +72,7 @@ impl MeshPart {
             material: None,
             own: false,
             uv: None,
+            grain_uv: None,
         }
     }
 }
@@ -221,6 +226,8 @@ impl ViewMesh {
         } else {
             None
         };
+        // Worked out only when a face turns out to need it: most solids show no texture.
+        let mut grain = None;
         for (fid, f) in b.faces() {
             let first = self.normals.len();
             let outer = b.loop_points(f.outer);
@@ -242,9 +249,13 @@ impl ViewMesh {
             });
             match textured {
                 Some(m) => {
-                    let frame = texture_frame(&plane, &outer);
-                    let px = model.texture_px(m);
+                    let grain = grain.get_or_insert_with(|| solid_grain(b)).as_ref();
                     let pos = paint.map(|p| p.uv).unwrap_or_default();
+                    let frame = face_frame(&plane, &outer, &pos, grain);
+                    if pos.is_identity() {
+                        part.grain_uv = grain_uv(&plane, &outer, m, grain);
+                    }
+                    let px = model.texture_px(m);
                     self.push_face(
                         part,
                         &outer,
@@ -502,7 +513,8 @@ pub fn face_uvs(
         .as_deref()
         .filter(|t| model.textures().contains_key(*t))?;
     let outer = b.loop_points(f.outer);
-    let frame = texture_frame(&f.plane, &outer);
+    let grain = solid_grain(b);
+    let frame = face_frame(&f.plane, &outer, uv, grain.as_ref());
     let px = model.texture_px(m);
     let mut out = Vec::new();
     for l in f.loops() {

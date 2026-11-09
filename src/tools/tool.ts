@@ -127,6 +127,8 @@ export interface ToolHost {
 
 export abstract class Tool {
   abstract readonly id: ToolId;
+  /** What the pointer last snapped to, for tools that show it. */
+  protected snap: Snap | null = null;
   constructor(protected host: ToolHost) {}
 
   /** Called when the tool becomes active. */
@@ -134,6 +136,8 @@ export abstract class Tool {
   /** Called when another tool takes over: drop any gesture. */
   deactivate(): void {
     this.reset();
+    // Tools are kept between uses: a snap left here would show at the old spot on return.
+    this.snap = null;
   }
   /** Forget the current gesture. */
   reset(): void {}

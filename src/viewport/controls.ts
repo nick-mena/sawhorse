@@ -9,6 +9,9 @@
 //   Shift+middle-drag  pan (Shift may be pressed or let go mid-drag)
 //   right-drag         pan: the point under the cursor at the press stays under it
 //   wheel              zoom toward the cursor (the point under it stays put)
+//   Alt+left/middle/right  (Settings: Maya style) tumble, track and dolly about the centre
+//                      of the view, Shift holding the drag to one axis; plain gestures then
+//                      use that centre too rather than the point under the cursor
 //   one finger         orbit, as middle-drag
 //   two fingers        pinch to zoom about their midpoint, drag to pan
 //   trackpad (macOS)   pinch to zoom toward the cursor, swipe two fingers to orbit about the
@@ -23,11 +26,11 @@
 // the document, so it follows the pointer off the canvas, and ends when the button is
 // found released (a release outside the window) or the window loses focus.
 import * as THREE from "three";
-import { swipeOrbits, trackpadOrbitSpeed } from "../lib/navPrefs";
+import { navStyle, swipeOrbits, trackpadOrbitSpeed } from "../lib/navPrefs";
 import type { Vec3 } from "./camera";
-import { dragAngles, isTrackpadWheel, lookTarget, orbit, panOffset, rayAt, wheelZoomFactor, zoomAt, type Lens, type Pose } from "./navmath";
+import { dollyFactor, dragAngles, isTrackpadWheel, lookTarget, orbit, panOffset, rayAt, wheelZoomFactor, zoomAt, type Lens, type Pose } from "./navmath";
 
-export type NavMode = "orbit" | "pan" | "pinch";
+export type NavMode = "orbit" | "pan" | "pinch" | "dolly";
 
 export interface NavHost {
   /** The model point (or the ground point) under canvas CSS pixel (x, y), or null when the
@@ -55,7 +58,15 @@ interface Drag {
   anchor: Vec3;
   /** Pinch: the fingers' spacing at the last move. */
   spacing?: number;
+  /** Started with Alt under the Maya style: Shift constrains it, and does not switch to pan. */
+  alt?: boolean;
+  /** Shift held on an Alt drag: the distance so far, then the axis it settled on. */
+  travel?: [number, number];
+  axis?: "x" | "y";
 }
+
+/** Pixels of drag before Shift decides which axis it holds. */
+const AXIS_LOCK_PX = 4;
 
 /** A trackpad swipe has ended once its wheel events (momentum included) stop this long (ms). */
 const SWIPE_GAP_MS = 160;
@@ -202,8 +213,12 @@ export class CameraController {
   /** The point a pan or zoom holds at pixel (x, y): what is under it, else the point on
    * its ray at the look-at point's depth. */
   private grab(x: number, y: number): Vec3 {
-    const hit = this.host.pick(x, y, false);
-    if (hit) return hit;
+    return this.host.pick(x, y, false) ?? this.atFocus(x, y);
+  }
+
+  /** The point on pixel (x, y)'s ray at the look-at point's depth: tracking holds this, so a
+   * drag moves the view the same distance whatever the cursor happens to be over. */
+  private atFocus(x: number, y: number): Vec3 {
     const pose = poseOf(this.object);
     const [nx, ny] = this.ndc(x, y);
     const ray = rayAt(pose, lensOf(this.object), nx, ny);
@@ -216,13 +231,19 @@ export class CameraController {
 
   /** The pivot an orbit turns about at pixel (x, y): what is under it, else the look-at point. */
   private pivotAt(x: number, y: number): Vec3 {
-    return this.host.pick(x, y, true) ?? [this.target.x, this.target.y, this.target.z];
+    const centre: Vec3 = [this.target.x, this.target.y, this.target.z];
+    return navStyle() === "maya" ? centre : (this.host.pick(x, y, true) ?? centre);
   }
 
-  private start(mode: NavMode, e: PointerEvent, x: number, y: number, mask: number): void {
-    const anchor = mode === "orbit" ? this.pivotAt(x, y) : this.grab(x, y);
+  /** What a pan holds under the cursor. */
+  private panAnchor(x: number, y: number): Vec3 {
+    return navStyle() === "maya" ? this.atFocus(x, y) : this.grab(x, y);
+  }
+
+  private start(mode: NavMode, e: PointerEvent, x: number, y: number, mask: number, alt = false): void {
+    const anchor: Vec3 = mode === "orbit" ? this.pivotAt(x, y) : mode === "dolly" ? [this.target.x, this.target.y, this.target.z] : this.panAnchor(x, y);
     const fresh = !this.drag;
-    this.drag = { mode, pointerId: e.pointerId, mask, button: e.button, x, y, anchor };
+    this.drag = { mode, pointerId: e.pointerId, mask, button: e.button, x, y, anchor, alt };
     if (fresh) {
       this.doc.addEventListener("pointermove", this.onMove);
       this.doc.addEventListener("pointerup", this.onUp);
@@ -257,8 +278,11 @@ export class CameraController {
   }
 
   private orbitBy(dx: number, dy: number, pivot: Vec3): void {
-    const a = dragAngles(dx, dy, this.host.size().h);
+    const a = dragAngles(dx, dy);
     const r = orbit(poseOf(this.object), pivot, a.azimuth, a.elevation);
+    // Held against the stop at the top or bottom: nothing to do, and rewriting the same pose
+    // would only add rounding and redraw.
+    if (r.azimuth === 0 && Math.abs(r.elevation) <= 1e-12) return;
     this.moveTo(r.pose, pivot);
   }
 
@@ -268,6 +292,22 @@ export class CameraController {
     const [nx, ny] = this.ndc(x, y);
     const off = panOffset(pose.fwd, anchor, rayAt(pose, lensOf(this.object), nx, ny));
     this.moveTo({ ...pose, eye: [pose.eye[0] + off[0], pose.eye[1] + off[1], pose.eye[2] + off[2]] }, anchor);
+  }
+
+  /** Slide the view by (dx, dy) pixels at `anchor`'s depth. */
+  private trackBy(dx: number, dy: number, anchor: Vec3): void {
+    const pose = poseOf(this.object);
+    const lens = lensOf(this.object);
+    const { h } = this.host.size();
+    const depth = Math.max(pose.fwd[0] * (anchor[0] - pose.eye[0]) + pose.fwd[1] * (anchor[1] - pose.eye[1]) + pose.fwd[2] * (anchor[2] - pose.eye[2]), 1e-6);
+    const halfHeight = lens.ortho ? lens.halfHeight / lens.zoom : depth * Math.tan((lens.fovDeg * Math.PI) / 360) / lens.zoom;
+    const perPixel = (2 * halfHeight) / Math.max(h, 1);
+    const [mx, my] = [-dx * perPixel, dy * perPixel];
+    const eye: Vec3 = [pose.eye[0] + pose.right[0] * mx + pose.up[0] * my, pose.eye[1] + pose.right[1] * mx + pose.up[1] * my, pose.eye[2] + pose.right[2] * mx + pose.up[2] * my];
+    const moved: Vec3 = [anchor[0] + eye[0] - pose.eye[0], anchor[1] + eye[1] - pose.eye[1], anchor[2] + eye[2] - pose.eye[2]];
+    this.moveTo({ ...pose, eye }, moved);
+    const d = this.drag;
+    if (d) d.anchor = moved;
   }
 
   /** Zoom by `factor` about pixel (x, y), where `anchor` is (on its ray). */
@@ -289,7 +329,10 @@ export class CameraController {
       return;
     }
     if (this.drag) return;
-    if (e.button === 1) {
+    if (e.altKey && navStyle() === "maya" && e.button <= 2) {
+      e.preventDefault();
+      this.start((["orbit", "pan", "dolly"] as const)[e.button], e, x, y, [1, 4, 2][e.button], true);
+    } else if (e.button === 1) {
       e.preventDefault();
       this.start(e.shiftKey ? "pan" : "orbit", e, x, y, 4);
     } else if (e.button === 2) {
@@ -343,15 +386,29 @@ export class CameraController {
       return;
     }
     // Shift pressed or let go during a middle drag switches between orbit and pan.
-    if (d.button === 1) {
+    if (d.button === 1 && !d.alt) {
       const want: NavMode = e.shiftKey ? "pan" : "orbit";
       if (want !== d.mode) {
         this.start(want, e, x, y, d.mask);
         return;
       }
     }
-    if (d.mode === "orbit") this.orbitBy(x - d.x, y - d.y, d.anchor);
-    else this.panTo(x, y, d.anchor);
+    let [dx, dy] = [x - d.x, y - d.y];
+    if (d.alt && e.shiftKey) {
+      d.travel = [(d.travel?.[0] ?? 0) + dx, (d.travel?.[1] ?? 0) + dy];
+      if (!d.axis && Math.max(Math.abs(d.travel[0]), Math.abs(d.travel[1])) >= AXIS_LOCK_PX) d.axis = Math.abs(d.travel[0]) >= Math.abs(d.travel[1]) ? "x" : "y";
+      if (d.axis !== "y") dy = 0;
+      if (d.axis !== "x") dx = 0;
+    } else {
+      d.travel = undefined;
+      d.axis = undefined;
+    }
+    if (d.mode === "orbit") this.orbitBy(dx, dy, d.anchor);
+    else if (d.mode === "dolly") this.zoomBy(this.host.size().w / 2, this.host.size().h / 2, dollyFactor(dx, dy), d.anchor);
+    else if (d.alt) {
+      // A constrained track follows the held axis, so the anchor moves by the deltas.
+      this.trackBy(dx, dy, d.anchor);
+    } else this.panTo(x, y, d.anchor);
     d.x = x;
     d.y = y;
   };
@@ -393,7 +450,7 @@ export class CameraController {
     const mode: SwipeMode = e.metaKey ? "zoom" : e.shiftKey ? "pan" : "orbit";
     // A modifier pressed or let go mid-swipe starts the new move from where the pointer is.
     const fresh = this.swipe?.mode !== mode;
-    const s = fresh ? { mode, anchor: mode === "orbit" ? this.pivotAt(x, y) : this.grab(x, y), x, y, timer } : { ...this.swipe!, timer };
+    const s = fresh ? { mode, anchor: mode === "orbit" ? this.pivotAt(x, y) : mode === "pan" ? this.panAnchor(x, y) : this.grab(x, y), x, y, timer } : { ...this.swipe!, timer };
     this.swipe = s;
     if (fresh) this.host.navigating();
     if (mode === "orbit") {

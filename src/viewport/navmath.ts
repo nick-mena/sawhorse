@@ -114,13 +114,21 @@ export function elevationStep(current: number, step: number, limit = ELEVATION_L
   return Math.max(lo, Math.min(hi, current + step)) - current;
 }
 
-/** Orbit angles for a drag of (dx, dy) CSS pixels on a viewport `height` pixels tall: a
- * drag the height of the view turns a full circle (the speed three.js OrbitControls used).
- * Dragging right turns the model to the right (the eye goes left round the pivot);
+/** Radians turned per CSS pixel of drag: a set rate, so that the same hand movement turns the
+ * model the same amount however large the window is. Four tenths of a degree is what a
+ * 900-pixel view used to get. */
+export const ORBIT_RATE = (0.4 * Math.PI) / 180;
+
+/** Orbit angles for a drag of (dx, dy) CSS pixels. Dragging right turns the model to the right (the eye goes left round the pivot);
  * dragging down tips its top towards you (the eye rises). */
-export function dragAngles(dx: number, dy: number, height: number): { azimuth: number; elevation: number } {
-  const k = (2 * Math.PI) / Math.max(height, 1);
-  return { azimuth: -dx * k, elevation: dy * k };
+export function dragAngles(dx: number, dy: number): { azimuth: number; elevation: number } {
+  return { azimuth: -dx * ORBIT_RATE, elevation: dy * ORBIT_RATE };
+}
+
+/** How far a dolly drag closes in (above 1 is nearer): to the right or down goes in, and the
+ * step is a ratio so that it feels the same at any distance. */
+export function dollyFactor(dx: number, dy: number): number {
+  return Math.exp((dx + dy) * 0.005);
 }
 
 /** The horizontal axis an elevation turns about: the camera's right vector laid level
@@ -149,7 +157,8 @@ export function orbit(pose: Pose, pivot: Vec3, azimuth: number, dElevation: numb
   let fwd = rotate(pose.fwd, Z, azimuth);
   const turned: Pose = { eye: add(pivot, rel), right, up, fwd };
   const step = elevationStep(elevation(fwd), dElevation, limit);
-  if (step !== 0) {
+  // At the stop, rounding leaves a step of a few 1e-16: not a move, and not to be reported.
+  if (Math.abs(step) > 1e-12) {
     // Tipping the view down turns the forward vector about the right vector by -step.
     const axis = elevationAxis(turned);
     rel = rotate(rel, axis, -step);

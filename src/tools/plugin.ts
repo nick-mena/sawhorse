@@ -12,14 +12,13 @@ import type { PluginManager } from "../plugins/manager";
 import { snapOfEvent } from "../plugins/model";
 import { ownMarkerSnap } from "../plugins/toolEvent";
 import { checkToolView, type PluginToolView } from "../plugins/toolView";
-import { EMPTY_VIEW, Tool, markerOf, type InferContext, type Snap, type ToolEvent, type ToolHost, type ToolView } from "./tool";
+import { EMPTY_VIEW, Tool, markerOf, type InferContext, type ToolEvent, type ToolHost, type ToolView } from "./tool";
 
 export { checkToolView, type PluginToolView } from "../plugins/toolView";
 
 export class PluginTool extends Tool {
   readonly id: PluginToolId;
   private manager: PluginManager;
-  private snap: Snap | null = null;
   private view_: PluginToolView = checkToolView(null);
   private moving = false;
   private nextMove: ToolEvent | null = null;

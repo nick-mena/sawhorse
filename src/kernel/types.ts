@@ -742,6 +742,8 @@ export interface MeshPart {
   own?: boolean;
   /** How a texture sits on the face, when positioned. */
   uv?: UvXform;
+  /** A face never positioned: its default look as a positioning in its own frame. */
+  grain_uv?: UvXform;
 }
 
 export interface MeshData {

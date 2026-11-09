@@ -13,7 +13,9 @@
 //!   rotation and an offset on top of the material's own. Coordinates come from the face's
 //!   stored plane frame, which moves with the solid (moves, copies, component placements), so
 //!   a texture stays put on the wood. By default the texture's x axis (the grain of a wood
-//!   image) runs along the longer side of each face. Skew and projection are later.
+//!   image) runs the same way on every face of a solid ([`solid_grain`]); a face that was
+//!   positioned keeps the face-by-face frame it was positioned in. Skew and projection are
+//!   later.
 //! - **Styles** ([`Style`]) and **shadows** ([`Shadows`]) are document state, saved in
 //!   `.shz` and in scenes (a scene that has them brings them back when activated).
 //!
@@ -703,6 +705,157 @@ pub fn texture_frame(plane: &Plane, outer: &[DVec3]) -> (DVec3, DVec3, DVec3) {
     }
 }
 
+/// Which way a solid's wood runs: `along` its reach, and `across` its thickness for the faces
+/// that look straight down the grain (a board's ends), so that the lines of the largest side
+/// carry on around the corner instead of standing up on the ends.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Grain {
+    along: DVec3,
+    across: Option<DVec3>,
+}
+
+/// How many edge directions are measured. A round solid has hundreds; the few with the most
+/// edge length include every direction that could be the grain.
+const GRAIN_DIRECTIONS: usize = 32;
+/// Directions that reach within this share of the longest count as equally long, and the one
+/// with more edge along it wins, so a triangulated face's diagonal never beats a board's side.
+const GRAIN_REACH: f64 = 0.9;
+
+/// The direction a solid's grain runs: of the directions its edges take, the one the solid
+/// reaches furthest along. Read from the edges so that it turns with the solid, and ties go
+/// to the direction met first so that a cube keeps its grain when it is moved or turned.
+/// `None` for a solid with no usable edge.
+pub fn solid_grain(b: &crate::brep::Brep) -> Option<Grain> {
+    #[derive(Clone, Copy)]
+    struct Run {
+        dir: DVec3,
+        total: f64,
+        first: usize,
+        span: f64,
+    }
+    let mut runs: BTreeMap<[i64; 3], Run> = BTreeMap::new();
+    let mut points = Vec::new();
+    let mut seen = 0;
+    for (_, f) in b.faces() {
+        for l in f.loops() {
+            let ring = b.loop_points(l);
+            for (k, &p) in ring.iter().enumerate() {
+                let d = ring[(k + 1) % ring.len()] - p;
+                let length = d.length();
+                if !(length > 1e-9 && length.is_finite()) {
+                    continue;
+                }
+                let mut dir = d / length;
+                // An edge and its reverse are one direction.
+                let lead = dir.to_array().into_iter().find(|c| c.abs() > 1e-6);
+                if lead.is_some_and(|c| c < 0.0) {
+                    dir = -dir;
+                }
+                let key = dir.to_array().map(|c| (c * 1e5).round() as i64);
+                seen += 1;
+                runs.entry(key)
+                    .or_insert(Run {
+                        dir,
+                        total: 0.0,
+                        first: seen,
+                        span: 0.0,
+                    })
+                    .total += length;
+            }
+            points.extend(ring);
+        }
+    }
+    let mut runs: Vec<Run> = runs.into_values().collect();
+    runs.sort_by(|a, b| b.total.total_cmp(&a.total).then(a.first.cmp(&b.first)));
+    runs.truncate(GRAIN_DIRECTIONS);
+    runs.sort_by_key(|r| r.first);
+    for r in &mut runs {
+        let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
+        for p in &points {
+            let t = p.dot(r.dir);
+            lo = lo.min(t);
+            hi = hi.max(t);
+        }
+        r.span = hi - lo;
+    }
+    let reach = runs.iter().map(|r| r.span).fold(0.0, f64::max);
+    let mut long: Option<&Run> = None;
+    for r in runs.iter().filter(|r| r.span >= reach * GRAIN_REACH) {
+        if long.is_none_or(|b| r.total > b.total * (1.0 + 1e-6)) {
+            long = Some(r);
+        }
+    }
+    let along = long?.dir;
+    let mut thin: Option<&Run> = None;
+    for r in runs.iter().filter(|r| r.dir.dot(along).abs() < 0.99) {
+        if thin.is_none_or(|b| r.span < b.span * (1.0 - 1e-6)) {
+            thin = Some(r);
+        }
+    }
+    Some(Grain {
+        along,
+        across: thin.map(|r| r.dir),
+    })
+}
+
+/// The frame a face with no positioning of its own takes its texture from: x along the
+/// solid's grain as it lies in the face, else (the face looks down the grain) across it, else
+/// the face's own [`texture_frame`].
+pub fn grain_frame(plane: &Plane, outer: &[DVec3], grain: Option<&Grain>) -> (DVec3, DVec3, DVec3) {
+    let dirs = grain.into_iter().flat_map(|g| [Some(g.along), g.across]);
+    for d in dirs.flatten() {
+        let lying = d - plane.normal * d.dot(plane.normal);
+        // Under about three degrees from the normal the direction in the face is mostly
+        // rounding, and would swing from one facet of a round solid to the next.
+        if lying.length() > 0.05 {
+            let u = lying.normalize();
+            return (plane.origin, u, plane.normal.cross(u));
+        }
+    }
+    texture_frame(plane, outer)
+}
+
+/// The frame face positioning `uv` is measured in. A positioned face stays in the frame it
+/// was positioned in, so editing the rest of the solid never swings a texture someone placed.
+pub fn face_frame(
+    plane: &Plane,
+    outer: &[DVec3],
+    uv: &UvXform,
+    grain: Option<&Grain>,
+) -> (DVec3, DVec3, DVec3) {
+    if uv.is_identity() {
+        grain_frame(plane, outer, grain)
+    } else {
+        texture_frame(plane, outer)
+    }
+}
+
+/// A face's default look written as a positioning in its own frame: where the texture handles
+/// start on a face that was never positioned. `None` when the two frames agree.
+pub fn grain_uv(
+    plane: &Plane,
+    outer: &[DVec3],
+    material: &Material,
+    grain: Option<&Grain>,
+) -> Option<UvXform> {
+    let (_, u, v) = texture_frame(plane, outer);
+    let (_, along, _) = grain_frame(plane, outer, grain);
+    let (s, c) = along.dot(v).atan2(along.dot(u)).sin_cos();
+    if s.abs() < 1e-9 && c > 0.0 {
+        return None;
+    }
+    // The material's offset is measured along the frame, so it has to turn with it.
+    let mo = DVec2::from_array(material.offset);
+    let off = DVec2::new(c * mo.x - s * mo.y, s * mo.x + c * mo.y) - mo;
+    UvXform {
+        scale: one2(),
+        rotation: s.atan2(c).to_degrees(),
+        offset: off.to_array(),
+    }
+    .checked()
+    .ok()
+}
+
 /// The (u, v) texture coordinate of world point `p` on a face with texture frame `frame`,
 /// for a material and the face's own positioning: in repeats of the texture (1.0 = one image
 /// across), x along the image's width, y along its height.
@@ -842,6 +995,18 @@ impl Model {
     /// The texture face `face` of `object` shows, when its material has an image the model
     /// holds.
     pub fn face_texture(&self, object: u64, face: u64) -> Option<FaceTexture> {
+        let grain = solid_grain(self.object(object)?.brep());
+        self.face_texture_with(object, face, grain.as_ref())
+    }
+
+    /// [`Model::face_texture`] with the solid's grain already worked out: an exporter walking
+    /// a solid's faces measures it once.
+    pub fn face_texture_with(
+        &self,
+        object: u64,
+        face: u64,
+        grain: Option<&Grain>,
+    ) -> Option<FaceTexture> {
         let o = self.object(object)?;
         let b = o.brep();
         let (_, f) = b.faces().find(|(_, f)| f.id == face)?;
@@ -851,11 +1016,12 @@ impl Model {
             .clone()
             .filter(|t| self.textures.contains_key(t))?;
         let outer = b.loop_points(f.outer);
+        let uv = o.paint.get(&face).map(|p| p.uv).unwrap_or_default();
         Some(FaceTexture {
-            frame: texture_frame(&f.plane, &outer),
+            frame: face_frame(&f.plane, &outer, &uv, grain),
             px: self.texture_px(m),
             material: m.clone(),
-            uv: o.paint.get(&face).map(|p| p.uv).unwrap_or_default(),
+            uv,
             path,
         })
     }
@@ -1612,6 +1778,154 @@ mod tests {
         ] {
             assert!(check_texture_path(bad).is_err(), "{bad}");
         }
+    }
+
+    /// A `w` x `d` x `h` box from its corners.
+    fn board(w: f64, d: f64, h: f64) -> crate::brep::Brep {
+        let p = |x: f64, y: f64, z: f64| DVec3::new(x * w, y * d, z * h);
+        let points = [
+            p(0., 0., 0.),
+            p(1., 0., 0.),
+            p(1., 1., 0.),
+            p(0., 1., 0.),
+            p(0., 0., 1.),
+            p(1., 0., 1.),
+            p(1., 1., 1.),
+            p(0., 1., 1.),
+        ];
+        let faces: Vec<crate::brep::PolyFace> = [
+            [0, 3, 2, 1],
+            [4, 5, 6, 7],
+            [0, 1, 5, 4],
+            [1, 2, 6, 5],
+            [2, 3, 7, 6],
+            [3, 0, 4, 7],
+        ]
+        .into_iter()
+        .map(|o| crate::brep::PolyFace::new(o.to_vec(), Vec::new()))
+        .collect();
+        crate::brep::Brep::from_polygons(&points, &faces).unwrap()
+    }
+
+    fn grain_directions(b: &crate::brep::Brep) -> Vec<(DVec3, DVec3)> {
+        let grain = solid_grain(b);
+        b.faces()
+            .map(|(_, f)| {
+                let outer = b.loop_points(f.outer);
+                let (_, u, _) = grain_frame(&f.plane, &outer, grain.as_ref());
+                (f.plane.normal, u)
+            })
+            .collect()
+    }
+
+    #[test]
+    fn a_boards_grain_runs_its_length_on_every_long_face() {
+        // A face's own shape used to decide, so these 0.5 x 0.55 ends stood their grain up
+        // along z while the faces beside them ran level. Now all four sides run level.
+        let b = board(0.6, 0.5, 0.55);
+        for (normal, u) in grain_directions(&b) {
+            if normal.x.abs() > 0.5 {
+                assert!((u - DVec3::Y).length() < 1e-9, "end {normal} runs {u}");
+            } else {
+                assert!(
+                    (u - DVec3::X).length() < 1e-9,
+                    "face {normal} runs {u}, not along the board"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_ends_of_a_board_agree_with_each_other() {
+        let b = board(1.0, 0.2, 0.05);
+        let ends: Vec<DVec3> = grain_directions(&b)
+            .into_iter()
+            .filter(|(n, _)| n.x.abs() > 0.5)
+            .map(|(_, u)| u)
+            .collect();
+        assert_eq!(ends.len(), 2);
+        // Through the thickness: the lines on the top carry on over the end.
+        assert!((ends[0] - DVec3::Z).length() < 1e-9);
+        assert!((ends[1] - DVec3::Z).length() < 1e-9);
+    }
+
+    #[test]
+    fn a_positioned_face_keeps_its_own_frame_and_the_default_reads_the_same_in_it() {
+        let b = board(1.0, 0.8, 0.9);
+        let grain = solid_grain(&b);
+        let m = Material {
+            color: [255; 4],
+            texture: None,
+            size: Some([0.2, 0.1]),
+            rotation: 20.0,
+            offset: [0.03, -0.01],
+            stock: None,
+        };
+        let mut baked = 0;
+        for (_, f) in b.faces() {
+            let outer = b.loop_points(f.outer);
+            let own = texture_frame(&f.plane, &outer);
+            let moved = UvXform {
+                scale: [2.0, 2.0],
+                ..UvXform::default()
+            };
+            assert_eq!(face_frame(&f.plane, &outer, &moved, grain.as_ref()), own);
+            // What the handles start from has to look exactly like the untouched face, or
+            // the texture would jump on the first drag.
+            let default = grain_frame(&f.plane, &outer, grain.as_ref());
+            let Some(uv) = grain_uv(&f.plane, &outer, &m, grain.as_ref()) else {
+                assert!((default.1 - own.1).length() < 1e-9);
+                continue;
+            };
+            baked += 1;
+            for &p in &outer {
+                let a = texture_uv(&default, p, &m, None, &UvXform::default());
+                let c = texture_uv(&own, p, &m, None, &uv);
+                assert!((a[0] - c[0]).abs() < 1e-9 && (a[1] - c[1]).abs() < 1e-9);
+            }
+        }
+        assert!(baked > 0, "this board has faces whose frames differ");
+    }
+
+    #[test]
+    fn the_grain_turns_with_the_solid() {
+        let b = board(1.0, 1.0, 1.0);
+        let before = solid_grain(&b).unwrap();
+        // A cube is a three-way tie: the direction met first must win however it lies.
+        let turn = glam::DMat3::from_rotation_z(0.7) * glam::DMat3::from_rotation_x(0.3);
+        let turned_points: Vec<DVec3> = b
+            .faces()
+            .flat_map(|(_, f)| b.loop_points(f.outer))
+            .map(|p| turn * p)
+            .collect();
+        let faces: Vec<crate::brep::PolyFace> = (0..6)
+            .map(|k| crate::brep::PolyFace::new((k * 4..k * 4 + 4).collect(), Vec::new()))
+            .collect();
+        let mut points: Vec<DVec3> = Vec::new();
+        let welded: Vec<crate::brep::PolyFace> = faces
+            .iter()
+            .map(|f| {
+                crate::brep::PolyFace::new(
+                    f.outer
+                        .iter()
+                        .map(|&i| {
+                            let p = turned_points[i];
+                            points
+                                .iter()
+                                .position(|q: &DVec3| (*q - p).length() < 1e-9)
+                                .unwrap_or_else(|| {
+                                    points.push(p);
+                                    points.len() - 1
+                                })
+                        })
+                        .collect(),
+                    Vec::new(),
+                )
+            })
+            .collect();
+        let t = crate::brep::Brep::from_polygons(&points, &welded).unwrap();
+        let after = solid_grain(&t).unwrap();
+        assert!((turn * before.along).dot(after.along).abs() > 1.0 - 1e-9);
     }
 
     #[test]

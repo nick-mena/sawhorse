@@ -149,6 +149,8 @@ test("a circle is one curve: select, move, scale, copy, split, erase, explode; a
 
   // 6. A line across the first circle (y = 14 in): two arcs, each selected whole.
   await page.keyboard.press("Escape");
+  // An edit leaves the camera where it is, and the copy went 1500 mm out of the first frame.
+  await page.keyboard.press("Shift+Z");
   await page.keyboard.press("l");
   await clickAt(page, [-20, 14, 0], "grid");
   // Locked to red (other points around would offer "from point" alignments).
@@ -399,6 +401,8 @@ test("lane 23b: the Eraser across a circle or a polygon, two circles moved, a pu
   expect(await regions(page)).toHaveLength(2);
   const xs = (cs: Curve[]) => cs.map((c) => c.centre![0]).sort((a, b) => a - b);
   const was = xs(await curves(page));
+  // An edit leaves the camera where it is: frame both before sweeping over them.
+  await page.keyboard.press("Shift+Z");
   // A crossing box (right to left) over both: each circle and its face.
   await page.keyboard.press("Space");
   await sweep(page, [1 / IN + 12, -12, 0], [-12, 12, 0]);

@@ -27,8 +27,8 @@ function screenOf(cam: THREE.Camera, p: Vec3): [number, number] {
   return [((v.x + 1) / 2) * W, ((1 - v.y) / 2) * H];
 }
 
-function pointer(el: EventTarget, type: string, init: { x: number; y: number; button?: number; buttons?: number; shift?: boolean; id?: number; kind?: string }) {
-  const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: init.x, clientY: init.y, button: init.button ?? 0, buttons: init.buttons ?? 0, shiftKey: !!init.shift });
+function pointer(el: EventTarget, type: string, init: { x: number; y: number; button?: number; buttons?: number; shift?: boolean; alt?: boolean; id?: number; kind?: string }) {
+  const e = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: init.x, clientY: init.y, button: init.button ?? 0, buttons: init.buttons ?? 0, shiftKey: !!init.shift, altKey: !!init.alt });
   Object.defineProperty(e, "pointerId", { value: init.id ?? 1 });
   Object.defineProperty(e, "pointerType", { value: init.kind ?? "mouse" });
   el.dispatchEvent(e);
@@ -67,6 +67,74 @@ afterEach(() => {
   canvas.remove();
 });
 
+describe("Maya camera style", () => {
+  beforeEach(() => localStorage.setItem("sawhorse.navStyle", "maya"));
+  afterEach(() => localStorage.removeItem("sawhorse.navStyle"));
+
+  const centre = (): Vec3 => [ctl.target.x, ctl.target.y, ctl.target.z];
+  const drag = (button: number, buttons: number, dx: number, dy: number, shift = false) => {
+    pointer(canvas, "pointerdown", { x: 300, y: 300, button, buttons, alt: true });
+    pointer(canvas, "pointermove", { x: 300 + dx, y: 300 + dy, buttons, alt: true, shift });
+    pointer(canvas, "pointerup", { x: 300 + dx, y: 300 + dy, button, alt: true });
+  };
+
+  it("Alt+left tumbles about the centre of the view, not the point under the cursor", () => {
+    const c = centre();
+    const before = screenOf(cam, c);
+    drag(0, 1, 80, 30);
+    const after = screenOf(cam, c);
+    expect(Math.hypot(after[0] - before[0], after[1] - before[1])).toBeLessThan(1e-6);
+    expect(cam.position.toArray()).not.toEqual([-0.6, -0.9, 0.8]);
+  });
+
+  it("Alt+middle tracks the centre by exactly the drag", () => {
+    const c = centre();
+    const before = screenOf(cam, c);
+    drag(1, 4, 40, -25);
+    const after = screenOf(cam, c);
+    expect(after[0] - before[0]).toBeCloseTo(40, 6);
+    expect(after[1] - before[1]).toBeCloseTo(-25, 6);
+  });
+
+  it("Alt+right dollies toward the centre, and keeps looking the same way", () => {
+    const fwd = cam.getWorldDirection(new THREE.Vector3());
+    const before = cam.position.distanceTo(ctl.target);
+    drag(2, 2, 60, 0);
+    expect(cam.position.distanceTo(ctl.target)).toBeLessThan(before);
+    expect(cam.getWorldDirection(new THREE.Vector3()).dot(fwd)).toBeCloseTo(1, 9);
+  });
+
+  it("Shift holds an Alt drag to the axis it starts along", () => {
+    const c = centre();
+    const before = screenOf(cam, c);
+    pointer(canvas, "pointerdown", { x: 300, y: 300, button: 1, buttons: 4, alt: true });
+    pointer(canvas, "pointermove", { x: 310, y: 301, buttons: 4, alt: true, shift: true });
+    pointer(canvas, "pointermove", { x: 320, y: 340, buttons: 4, alt: true, shift: true });
+    const after = screenOf(cam, c);
+    expect(after[1] - before[1]).toBeCloseTo(0, 6);
+    expect(after[0] - before[0]).toBeGreaterThan(5);
+    pointer(canvas, "pointerup", { x: 320, y: 340, button: 1, alt: true });
+  });
+
+  it("leaves a left press without Alt to the tools", () => {
+    pointer(canvas, "pointerdown", { x: 300, y: 300, button: 0, buttons: 1 });
+    expect(ctl.state().mode).toBeNull();
+  });
+
+  it("plain orbits also turn about the centre", () => {
+    pointer(canvas, "pointerdown", { x: 470, y: 260, button: 1, buttons: 4 });
+    expect(ctl.state().pivot).toEqual(centre());
+    pointer(canvas, "pointerup", { x: 470, y: 260, button: 1 });
+  });
+});
+
+describe("the default style", () => {
+  it("leaves Alt+left to the tools", () => {
+    pointer(canvas, "pointerdown", { x: 300, y: 300, button: 0, buttons: 1, alt: true });
+    expect(ctl.state().mode).toBeNull();
+  });
+});
+
 describe("middle-drag orbit (issue #5)", () => {
   it("pins the point under the cursor at the press, shows the pivot while held, and moves the look-at point", () => {
     const at: [number, number] = [470, 260];
@@ -77,10 +145,10 @@ describe("middle-drag orbit (issue #5)", () => {
     expect(ctl.state().pivot).toEqual(pivot);
     expect(navigating).toHaveBeenCalledTimes(1);
     let worst = 0;
-    // 200 px across, then 200 px down, in 10 px steps (moves bubble to the document).
+    // 200 px across, then 400 px down, in 10 and 20 px steps (moves bubble to the document).
     for (let i = 1; i <= 40; i++) {
       const dx = i <= 20 ? 10 * i : 200;
-      const dy = i <= 20 ? 0 : 10 * (i - 20);
+      const dy = i <= 20 ? 0 : 20 * (i - 20);
       pointer(canvas, "pointermove", { x: at[0] + dx, y: at[1] + dy, buttons: 4 });
       const s = screenOf(cam, pivot);
       worst = Math.max(worst, Math.hypot(s[0] - at[0], s[1] - at[1]));
@@ -88,7 +156,7 @@ describe("middle-drag orbit (issue #5)", () => {
     expect(worst).toBeLessThan(1e-6);
     // Every step moved the camera until the view reached 89.5 degrees down; the steps past
     // that changed nothing and were not reported.
-    expect(changes).toBeGreaterThan(30);
+    expect(changes).toBeGreaterThan(25);
     expect(changes).toBeLessThan(40);
     // The look-at point is on the new view direction, at the pivot's depth.
     const fwd = new THREE.Vector3();

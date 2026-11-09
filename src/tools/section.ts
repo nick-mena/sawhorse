@@ -67,7 +67,6 @@ export function squareOn(p: V3, n: V3, size: number): V3[] {
 
 export class SectionTool extends Tool {
   readonly id = "section" as const;
-  private snap: Snap | null = null;
   private viewDir: V3 = [0, 0, -1];
   private lock: (typeof LOCKS)[string] | null = null;
   private reversed = false;

@@ -31,13 +31,14 @@ function state(context: number | null = null): DocState {
   return { graph, materials: [OAK] } as unknown as DocState;
 }
 
-function setup(active: MaterialInfo | null = OAK) {
+function setup(active: MaterialInfo | null = OAK, removing = false) {
   const painted: { target: PaintTarget; what: string }[] = [];
   const previews: ({ parts: number[]; material: MaterialInfo } | null)[] = [];
   const uvs: { part: number; n: number }[] = [];
   const sampled: [number, number][] = [];
   const ctx: PaintContext = {
     active: () => active,
+    removing: () => removing,
     paint: async (target, what) => {
       painted.push({ target, what });
       return true;
@@ -185,5 +186,22 @@ describe("Paint tool, lane 15", () => {
     await new Promise((r) => setTimeout(r, 0));
     const last = h.statuses.at(-1)?.text ?? "";
     expect(last).toMatch(/Painted group 'Carcass' White oak; 1 face inside keeps paint of its own\. Edit > Clear Paint lets White oak show there\./);
+  });
+});
+
+describe("Remove Paint", () => {
+  it("a click takes a face's paint off, and nothing is previewed", async () => {
+    const { h, tool, previews } = setup(null, true);
+    tool.onEvent(onFace(1, 2));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(h.ops).toEqual([{ op: "paint", target: { on: "faces", object: 1, faces: [2] }, material: null }]);
+    expect(previews.filter(Boolean)).toHaveLength(0);
+  });
+
+  it("Ctrl+click clears the whole solid, its faces' own paint included", async () => {
+    const { h, tool } = setup(null, true);
+    tool.onEvent(onFace(1, 2, { ctrl: true }));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(h.ops).toEqual([{ op: "clear_paint", items: [{ object: 1 }] }]);
   });
 });

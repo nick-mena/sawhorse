@@ -14,7 +14,7 @@ import { curveSegments } from "../lib/curves";
 import { faceOf, regionName, solidName } from "../lib/names";
 import { parseVcb } from "../lib/vcb";
 import { add, cross, dot, len, mul, sub, unit } from "./draw";
-import { EMPTY_VIEW, Tool, markerOf, type InferContext, type Snap, type ToolEvent, type ToolView } from "./tool";
+import { EMPTY_VIEW, Tool, markerOf, type InferContext, type ToolEvent, type ToolView } from "./tool";
 import { withKey } from "../lib/shortcuts";
 
 const MIN_OFFSET = 1e-5;
@@ -124,7 +124,6 @@ interface Gesture {
 
 export class OffsetTool extends Tool {
   readonly id = "offset" as const;
-  private snap: Snap | null = null;
   private g: Gesture | null = null;
   private fresh = false;
   /** The kernel's preview for the current distance (null while none is back yet). */

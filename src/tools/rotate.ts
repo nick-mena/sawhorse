@@ -120,7 +120,6 @@ interface LastTurn {
 
 export class RotateTool extends Tool {
   readonly id = "rotate" as const;
-  private snap: Snap | null = null;
   private g: Gesture | null = null;
   private axisLock: (typeof AXIS_KEYS)[string] | null = null;
   /** Shift held: the plane under the cursor when it went down. */

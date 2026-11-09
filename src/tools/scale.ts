@@ -20,7 +20,7 @@ import type { Entity, KernelOp, MeshData, V3 } from "../kernel/types";
 import type { Label } from "../components/Viewport";
 import { parseNumber, parseLength } from "../lib/units";
 import { dist, dot, sub, unit } from "./draw";
-import { EMPTY_VIEW, Tool, markerOf, type InferContext, type Snap, type ToolEvent, type ToolView } from "./tool";
+import { EMPTY_VIEW, Tool, markerOf, type InferContext, type ToolEvent, type ToolView } from "./tool";
 import { applyX, boundsOf, coveredSolids, curveNoun, curvePointRefusal, describeSubject, geometryOp, loadOutlines, movedSelection, objectsOp, previewSegments, scaling, sketchPreviews, sketchSegments, subjectEdges, subjectOf, type SketchPreview, type Subject } from "./xform";
 import { scopeEntity } from "../lib/scope";
 import { curveOf, curveView, lengthWithUnit } from "../lib/curves";
@@ -160,7 +160,6 @@ interface Gesture extends Target {
 
 export class ScaleTool extends Tool {
   readonly id = "scale" as const;
-  private snap: Snap | null = null;
   /** What the grips are on (the selection, or the solid last under the cursor). */
   private target: Target | null = null;
   private hot: Grip | null = null;

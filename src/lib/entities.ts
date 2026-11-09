@@ -528,6 +528,40 @@ export function boxSelect(mesh: MeshData | null, toScreen: (p: V3) => P2, box: B
   return out;
 }
 
+/**
+ * Sketch lines that bound no region drawn in `mesh`: a stray stroke, or one left where a solid
+ * stood. Select All takes them, or they could outlive everything else on the screen. A curve's
+ * segments count as the curve, and only when none of it bounds a region.
+ */
+export function looseStrokes(mesh: MeshData): Entity[] {
+  const bounding = new Set<string>();
+  const uses = new Map<string, number>();
+  const { positions: pos, indices: idx, edges: e } = mesh;
+  for (let t = 0; t < mesh.faceIds.length; t++) {
+    if (mesh.parts[mesh.faceIds[t]]?.kind !== "region") continue;
+    for (let j = 0; j < 3; j++) {
+      const k = segKey(pos, 3 * idx[3 * t + j], pos, 3 * idx[3 * t + ((j + 1) % 3)]);
+      uses.set(k, (uses.get(k) ?? 0) + 1);
+    }
+  }
+  for (const [k, n] of uses) if (n === 1) bounding.add(k);
+  const out: Entity[] = [];
+  const curveFree = new Map<number, boolean>();
+  for (let i = 0; i < mesh.edgeOwner.length; i++) {
+    const o = mesh.edgeOwners[mesh.edgeOwner[i]];
+    if (!o || o.kind !== "sketch") continue;
+    const free = !bounding.has(segKey(e, 6 * i, e, 6 * i + 3));
+    const c = mesh.edgeCurve?.[i] ?? 0;
+    if (c > 0) curveFree.set(c - 1, (curveFree.get(c - 1) ?? true) && free);
+    else if (free) out.push({ kind: "edge", owner: { kind: "sketch", id: o.id }, a: [e[6 * i], e[6 * i + 1], e[6 * i + 2]], b: [e[6 * i + 3], e[6 * i + 4], e[6 * i + 5]], drawn: true });
+  }
+  for (const [c, free] of curveFree) {
+    const v = mesh.curves?.[c];
+    if (free && v?.owner.kind === "sketch") out.push({ kind: "curve", owner: { kind: "sketch", id: v.owner.id }, curve: v.curve });
+  }
+  return out;
+}
+
 /** Lane 15: an edge's soft (1), smooth (2) and hidden (4) flags in words ("soft and smooth"),
  * "" for a plain edge. */
 export function edgeFlagWords(flags: number | undefined): string {

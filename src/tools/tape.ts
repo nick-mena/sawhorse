@@ -1,14 +1,17 @@
 // Tape measure (T) and Dimension (D).
 //
-// Tape: click two points to measure between them (nothing is drawn). Click an edge (not
+// Tape: click two points to measure between them; the line and its length stay until the
+// next click, Esc or another tool. Click an edge (not
 // its end) and move away from it to place a guide line parallel to it; click, or type the
 // offset. From a point, a typed length drops a guide point that far along the direction
-// the cursor shows. Guides are inferable: shapes snap to them and to where they cross
+// the cursor shows. From an edge's midpoint the tape lays out a guide square to the edge,
+// through that point (tap Ctrl to measure from it instead). Guides are inferable: shapes snap to them and to where they cross
 // edges (the dado layout on a bookshelf side).
 //
 // Dimension: click two points (or one edge), then click where the dimension line goes.
 // The text is the length in the display units.
 import type { V3 } from "../kernel/types";
+import { platformText } from "../lib/keys";
 import { notHere, parseVcb } from "../lib/vcb";
 import { add, dist, dot, len, mul, sub, unit } from "./draw";
 import { StrokeTool } from "./stroke";
@@ -27,11 +30,25 @@ function edgeOf(s: Snap): [V3, V3] | null {
   return null;
 }
 
+function midpointOf(s: Snap): [V3, V3] | null {
+  const e = s.entity;
+  if (s.kind === "midpoint" && e && e.kind === "edge") return [e.a, e.b];
+  return null;
+}
+
+const PERPENDICULAR_HINT = "Square to this edge: move to the side the guide goes and click. Tap Ctrl to measure from this point instead.";
+const MEASURE_HINT = "Measuring from here: click the second point. Type a length to drop a guide point.";
+
 export class TapeTool extends StrokeTool {
   readonly id = "tape" as const;
   private a: V3 | null = null;
   /** Guide mode: the edge the tape started on. */
   private edge: [V3, V3] | null = null;
+  /** Started on an edge's midpoint: the edge. While `edge` is set too, the guide goes through
+   * the midpoint, square to the edge; a tap of Ctrl clears `edge` to measure instead. */
+  private mid: [V3, V3] | null = null;
+  /** The last measurement, on screen until the next click, Esc or another tool. */
+  private measured: { a: V3; b: V3; text: string } | null = null;
 
   start(): V3 | null {
     return this.a;
@@ -41,10 +58,31 @@ export class TapeTool extends StrokeTool {
     super.reset();
     this.a = null;
     this.edge = null;
+    this.mid = null;
+  }
+
+  deactivate(): void {
+    super.deactivate();
+    this.measured = null;
+  }
+
+  cancel(): boolean {
+    if (super.cancel()) return true;
+    if (!this.measured) return false;
+    this.measured = null;
+    this.host.changed();
+    return true;
   }
 
   valueLabel(): string {
-    return this.edge ? "Offset" : "Length";
+    return this.edge && !this.mid ? "Offset" : "Length";
+  }
+
+  onModifier(key: "ctrl" | "alt"): void {
+    if (key !== "ctrl" || !this.a || !this.mid) return;
+    this.edge = this.edge ? null : this.mid;
+    this.host.status(platformText(this.edge ? PERPENDICULAR_HINT : MEASURE_HINT));
+    this.host.changed();
   }
 
   onEvent(e: ToolEvent): void {
@@ -58,27 +96,28 @@ export class TapeTool extends StrokeTool {
     if (e.type !== "click" || !e.snap) return;
     const s = e.snap;
     if (!this.a) {
+      this.measured = null;
       this.a = s.point;
-      this.edge = edgeOf(s);
-      h.status(
-        this.edge
-          ? "Guide from this edge: move away from it and click, or type the offset."
-          : "Measuring from here: click the second point. Type a length to drop a guide point.",
-      );
+      this.mid = midpointOf(s);
+      this.edge = this.mid ?? edgeOf(s);
+      h.status(this.mid ? platformText(PERPENDICULAR_HINT) : this.edge ? "Guide from this edge: move away from it and click, or type the offset." : MEASURE_HINT);
       h.changed();
       return;
     }
     if (this.edge) {
       const off = perpendicularFrom(this.edge[0], this.edge[1], s.point);
       if (len(off) < 1e-9) return;
-      void this.placeGuide(off);
+      if (this.mid) void this.placeSquare(unit(off));
+      else void this.placeGuide(off);
       return;
     }
     const d = dist(this.a, s.point);
     const delta = sub(s.point, this.a);
     h.status(`Distance ${h.fmt(d)} ${h.unitLabel()} (x ${h.fmt(Math.abs(delta[0]))}, y ${h.fmt(Math.abs(delta[1]))}, z ${h.fmt(Math.abs(delta[2]))}).`);
     h.showValue(h.fmt(d));
+    const a = this.a;
     this.reset();
+    this.measured = { a, b: s.point, text: h.fmt(d) };
     h.changed();
   }
 
@@ -98,6 +137,14 @@ export class TapeTool extends StrokeTool {
     await h.apply({ op: "add_guide", point: add(e[0], offset), dir }, () => `Guide ${h.fmt(len(offset))} ${h.unitLabel()} from the edge. Shapes snap to it and to where it crosses edges.`);
   }
 
+  private async placeSquare(dir: V3): Promise<void> {
+    const a = this.a;
+    if (!a) return;
+    this.reset();
+    this.host.changed();
+    await this.host.apply({ op: "add_guide", point: a, dir }, () => "Guide square to the edge, through its midpoint. Shapes snap to it and to where it crosses edges.");
+  }
+
   onValue(text: string): void {
     const h = this.host;
     const r = parseVcb(text, h.units());
@@ -105,6 +152,15 @@ export class TapeTool extends StrokeTool {
     if (r.value.kind !== "length") return void h.status(notHere(r.value, "Tape", "a length"), true);
     const L = r.value.m;
     if (!this.a) return void h.status("Click an edge (for a guide line) or a point (to measure) first.", true);
+    if (this.edge && this.mid) {
+      const cur = this.cursor ? perpendicularFrom(this.edge[0], this.edge[1], this.cursor) : null;
+      if (!cur || len(cur) < 1e-9) return void h.status("Move the cursor to the side the guide goes, then type the length.", true);
+      const p = add(this.a, mul(unit(cur), L));
+      this.reset();
+      h.changed();
+      void h.apply({ op: "add_guide", point: p, dir: null }, () => `Guide point ${h.fmt(Math.abs(L))} ${h.unitLabel()} square to the edge.`);
+      return;
+    }
     if (this.edge) {
       const cur = this.cursor ? perpendicularFrom(this.edge[0], this.edge[1], this.cursor) : null;
       if (!cur || len(cur) < 1e-9) return void h.status("Move the cursor to the side the guide goes, then type the offset.", true);
@@ -121,7 +177,16 @@ export class TapeTool extends StrokeTool {
   view(): ToolView {
     const a = this.a;
     const c = this.cursor;
-    if (!a || !c) return this.baseView();
+    if (!a || !c) {
+      const m = this.measured;
+      return m ? this.baseView([{ kind: "segments", points: [m.a, m.b], color: "--sel", width: 1.5 }], [{ at: mul(add(m.a, m.b), 0.5), text: m.text, className: "dim" }]) : this.baseView();
+    }
+    if (this.edge && this.mid) {
+      const off = perpendicularFrom(this.edge[0], this.edge[1], c);
+      if (len(off) < 1e-9) return this.baseView();
+      const dir = unit(off);
+      return this.baseView([{ kind: "segments", points: [add(a, mul(dir, -2)), add(a, mul(dir, 2))], color: "--inf-guide", width: 1.5, dashed: true }], this.live(this.host.fmt(len(off))));
+    }
     if (this.edge) {
       const off = perpendicularFrom(this.edge[0], this.edge[1], c);
       const dir = unit(sub(this.edge[1], this.edge[0]));

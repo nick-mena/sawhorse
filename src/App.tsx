@@ -7,6 +7,7 @@ import { ToolRail } from "./components/ToolRail";
 import { toolCursor } from "./components/toolCursor";
 import { stampLabels } from "./nesting/stamps";
 import { isMac } from "./lib/keys";
+import { navStyle } from "./lib/navPrefs";
 import { Viewport, type KernelState, type ViewportPointer } from "./components/Viewport";
 import { SidePanel, type PaneId } from "./components/SidePanel";
 import { CutListReport } from "./components/CutListReport";
@@ -32,7 +33,7 @@ import { ShortcutsDialog } from "./components/ShortcutsDialog";
 import { FeedbackDialog } from "./components/FeedbackDialog";
 import type { Entity, KernelOp, SceneData, V3 } from "./kernel/types";
 import { describeTarget, nextTarget, type Target } from "./lib/edit";
-import { entityKey, eraseOps, partsOf, selectionHighlight, selectionLookup, withHover } from "./lib/entities";
+import { entityKey, eraseOps, looseStrokes, partsOf, selectionHighlight, selectionLookup, withHover } from "./lib/entities";
 import { thumbnailUrl } from "./lib/thumbnail";
 import { contextTrail, describeNode, entityShown, graphIndex, graphOf, nodeById, objectParent, quoted, scopeEntity, solidsIn } from "./lib/scope";
 import { meshIndex } from "./lib/meshIndex";
@@ -79,8 +80,8 @@ import type { Item, SceneDef } from "./kernel/types";
 import { useCredits } from "./credits/useCredits";
 import { storageNote } from "./credits/device";
 import { NothingToRenderError, renderPasses } from "./render/passes";
-import { PaintTool, type PaintContext } from "./tools/paint";
-import type { ActiveRef } from "./components/MaterialsPane";
+import { PaintTool, REMOVE_HINT, type PaintContext } from "./tools/paint";
+import { REMOVE_PAINT, type ActiveRef } from "./components/MaterialsPane";
 import type { LibraryEntry, MaterialInfo, Shadows } from "./kernel/types";
 import { compactStyle, fullStyle, gridAfterScene, gridShown, materialNameFor, sniffImage, texturePathFor, toBase64, type FullStyle } from "./lib/looks";
 import { usePlugins } from "./plugins/usePlugins";
@@ -1209,6 +1210,7 @@ export function App() {
   const paintCtx = useMemo<PaintContext>(
     () => ({
       active: activeInfo,
+      removing: () => activeMatRef.current?.from === "remove",
       paint: async (target, what) => {
         const m = activeInfo();
         const k = kernelRef.current;
@@ -2241,6 +2243,10 @@ export function App() {
         }
       }
     }
+    for (const s of looseStrokes(m)) {
+      const e = scopeEntity(s, state);
+      if (e) all.push(e);
+    }
     live.current.selection = all;
     setSelection(all);
     setMessage({ text: `Selected ${all.length} item${all.length === 1 ? "" : "s"}.`, error: false });
@@ -2334,6 +2340,8 @@ export function App() {
         // A tap of Ctrl (Cmd on a Mac) or Alt alone (Move / Rotate copy, Move autofold). Alt
         // must not focus the browser's menu bar.
         if (e.key === "Alt") e.preventDefault();
+        // Under the Maya style Alt is how a drag reaches the camera, not a tool's toggle.
+        if (e.key === "Alt" && navStyle() === "maya") return;
         // After any click or tool key still on its way: the tap belongs to the tool that is
         // active by then ("s" then Ctrl scales about the centre).
         const mod = e.key === "Alt" ? "alt" : "ctrl";
@@ -2907,6 +2915,11 @@ export function App() {
           library,
           swatch: swatchFor,
           active: activeMat,
+          onRemovePaint: () => {
+            setActiveMat(REMOVE_PAINT);
+            selectTool("paint");
+            setMessage({ text: REMOVE_HINT, error: false });
+          },
           onActive: (a) => {
             setActiveMat(a);
             if (a) {

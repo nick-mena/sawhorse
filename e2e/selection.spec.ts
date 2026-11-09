@@ -143,3 +143,27 @@ test("Delete erases through the kernel; structural edges are refused; Erase tool
   await page.keyboard.press("Control+z");
   await expect(vp).toHaveAttribute("data-objects", "1");
 });
+
+test("Select All takes a loose line, so Delete leaves nothing behind", async ({ page }) => {
+  await ready(page);
+  await page.keyboard.press("r");
+  await page.keyboard.type("24,16");
+  await page.keyboard.press("Enter");
+  // An edit leaves the camera where it is: frame the rectangle so the two clicks land apart.
+  await page.keyboard.press("Shift+Z");
+  await page.keyboard.press("l");
+  for (const p of [[6, 6, 0], [14, 10, 0]] as V3[]) {
+    const [x, y] = await at(page, p.map((v) => v * 0.0254) as V3);
+    await page.mouse.move(x, y, { steps: 3 });
+    await page.mouse.click(x, y);
+  }
+  const edges = () => page.evaluate(() => (window as unknown as { __sawhorse: { edgeCounts(): { hard: number } } }).__sawhorse.edgeCounts().hard);
+  // The rectangle's four sides and the line: Select All must not run ahead of the edit.
+  await expect.poll(edges).toBe(5);
+  await page.keyboard.press("Escape");
+  await page.keyboard.press("Space");
+  await page.keyboard.press("ControlOrMeta+a");
+  await expect(page.locator("#hint")).toContainText("Selected 2 items");
+  await page.keyboard.press("Delete");
+  await expect.poll(edges).toBe(0);
+});

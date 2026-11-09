@@ -29,7 +29,7 @@ import { dirName, dist, len, mul, sub, unit } from "./draw";
 import { LockState } from "./lock";
 import { scopeEntity } from "../lib/scope";
 import { curveOf } from "../lib/curves";
-import { EMPTY_VIEW, Tool, inferenceLine, markerOf, type InferContext, type Snap, type ToolEvent, type ToolView } from "./tool";
+import { EMPTY_VIEW, Tool, inferenceLine, markerOf, type InferContext, type ToolEvent, type ToolView } from "./tool";
 import { curvePointRefusal, describeSubject, geometryOp, isCopied, isSketchEntity, loadOutlines, movedSelection, objectsOp, previewSegments, sketchPreviews, sketchSegments, subjectEdges, subjectOf, translation, type SketchPreview, type Subject } from "./xform";
 
 interface Gesture {
@@ -67,7 +67,6 @@ export function moveOp(subject: Subject, delta: V3, copy: boolean, count = 1, au
 
 export class MoveTool extends Tool {
   readonly id = "move" as const;
-  private snap: Snap | null = null;
   private g: Gesture | null = null;
   private lock = new LockState();
   /** Ctrl was tapped during this gesture: copy instead of move. */

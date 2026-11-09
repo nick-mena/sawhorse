@@ -14,6 +14,7 @@
 
 use glam::{DVec2, DVec3};
 use sawhorse_kernel::Model;
+use sawhorse_kernel::looks::solid_grain;
 use sawhorse_tessellate::triangulate;
 use serde_json::{Value, json};
 
@@ -333,6 +334,7 @@ pub fn document_with(
         // One primitive per material the faces show, in order of first face.
         let mut by_material: Vec<(Option<String>, Prim)> = Vec::new();
         let br = o.brep();
+        let grain = solid_grain(br);
         // Lane 15: across smooth edges the faces share normals (a softened cylinder reads
         // round in a viewer, as in the app).
         let smooth = o.smooth_normals();
@@ -348,7 +350,7 @@ pub fn document_with(
                 }
             };
             let tex = if opts.textures {
-                model.face_texture(*id, f.id)
+                model.face_texture_with(*id, f.id, grain.as_ref())
             } else {
                 None
             };

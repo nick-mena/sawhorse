@@ -12,7 +12,6 @@ import type { OverlayItem } from "../viewport/engine";
 export const PLANE_KEYS: Record<string, "z" | "x" | "y"> = { ArrowUp: "z", ArrowRight: "x", ArrowLeft: "y" };
 
 export abstract class StrokeTool extends Tool {
-  protected snap: Snap | null = null;
   protected lock = new LockState();
   /** The plane the current shape is drawn on (set by the first click). */
   protected plane: DrawPlane | null = null;

@@ -10,7 +10,7 @@ import type { Entity, KernelOp, Profile, V3 } from "../kernel/types";
 import { faceOf, regionName, solidName } from "../lib/names";
 import { cross, dot, len, sub } from "./draw";
 import { chainOf } from "./offset";
-import { EMPTY_VIEW, Tool, markerOf, type Snap, type ToolEvent, type ToolView } from "./tool";
+import { EMPTY_VIEW, Tool, markerOf, type ToolEvent, type ToolView } from "./tool";
 import { menuKeys } from "../lib/shortcuts";
 
 export interface Path {
@@ -64,7 +64,6 @@ export function followOp(profile: Profile, path: Path): KernelOp {
 
 export class FollowTool extends Tool {
   readonly id = "follow" as const;
-  private snap: Snap | null = null;
   private path: Path | null = null;
   private pathError: string | null = null;
 

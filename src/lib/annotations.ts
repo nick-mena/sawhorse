@@ -6,6 +6,8 @@ import type { OverlayItem } from "../viewport/engine";
 
 /** Half-length a guide line is drawn to on each side of its point, metres. */
 export const GUIDE_REACH = 100;
+/** How strongly a guide shows where the model covers it. */
+const GUIDE_THROUGH = 0.35;
 
 const add = (a: V3, b: V3): V3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const mul = (a: V3, s: number): V3 => [a[0] * s, a[1] * s, a[2] * s];
@@ -25,17 +27,16 @@ export function annotationView(state: DocState | null, fmt: (m: number) => strin
   for (const g of state.guides ?? []) {
     const color = selGuides.has(g.id) ? "--sel" : "--inf-guide";
     if (g.dir) {
-      overlay.push({ kind: "segments", points: [add(g.point, mul(g.dir, -GUIDE_REACH)), add(g.point, mul(g.dir, GUIDE_REACH))], color, width: selGuides.has(g.id) ? 2 : 1.25, dashed: true, depthTest: true });
+      const points = [add(g.point, mul(g.dir, -GUIDE_REACH)), add(g.point, mul(g.dir, GUIDE_REACH))];
+      // Faintly through the model as well: a guide on or inside a solid must not vanish.
+      overlay.push({ kind: "segments", points, color, width: 1.25, dashed: true, opacity: GUIDE_THROUGH });
+      overlay.push({ kind: "segments", points, color, width: selGuides.has(g.id) ? 2 : 1.25, dashed: true, depthTest: true });
     } else {
       const s = 0.0127; // a 1/2 in cross
       const p = g.point;
-      overlay.push({
-        kind: "segments",
-        points: [add(p, [-s, 0, 0]), add(p, [s, 0, 0]), add(p, [0, -s, 0]), add(p, [0, s, 0]), add(p, [0, 0, -s]), add(p, [0, 0, s])],
-        color,
-        width: 1.5,
-        depthTest: true,
-      });
+      const points = [add(p, [-s, 0, 0]), add(p, [s, 0, 0]), add(p, [0, -s, 0]), add(p, [0, s, 0]), add(p, [0, 0, -s]), add(p, [0, 0, s])];
+      overlay.push({ kind: "segments", points, color, width: 1.5, opacity: GUIDE_THROUGH });
+      overlay.push({ kind: "segments", points, color, width: 1.5, depthTest: true });
     }
   }
   for (const d of state.dimensions ?? []) {
