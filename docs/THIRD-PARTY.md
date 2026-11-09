@@ -12,7 +12,7 @@ The sixteen flat colours and the glass and metal basics are plain sRGB values ch
 
 | What | Where | Licence / source |
 |---|---|---|
-| Fonts (Barlow Condensed, IBM Plex Sans, IBM Plex Mono) | `@fontsource/*` npm packages | SIL Open Font License 1.1 |
+| Fonts (Open Sans, Noto Sans Mono) | `@fontsource/*` npm packages | SIL Open Font License 1.1 |
 | Tool glyphs | `src/components/glyphs.tsx` | Our own (ADR-0003) |
 | `.skp` reading | npm `openskp` 1.4.0 | MIT (see `docs/CLEANROOM.md` for what was read of it) |
 | Parsing plugin sources before they run (lane 11) | npm `acorn` 8.19.0, used as a library through its documented `parse` function; no dependencies | MIT |

@@ -18,7 +18,7 @@ People who already model furniture have SketchUp in their hands: the keys, the p
 
 ## Consequences and implementation status (lane 1)
 
-- Components: `TopBar`, `ToolRail`, `Viewport`, `SidePanel`, `ValueBar` in `src/components/`. Tokens (`src/styles/tokens.css`) and layout CSS (`src/styles/app.css`) are copied from the mock with the same class names, so the two can be diffed. Fonts (Barlow Condensed, IBM Plex Sans, IBM Plex Mono) are self-hosted through `@fontsource` so the desktop app works offline.
+- Components: `TopBar`, `ToolRail`, `Viewport`, `SidePanel`, `ValueBar` in `src/components/`. Tokens (`src/styles/tokens.css`) and layout CSS (`src/styles/app.css`) are copied from the mock with the same class names, so the two can be diffed. Fonts (this fork: Open Sans and Noto Sans Mono; originally Barlow Condensed and IBM Plex) are self-hosted through `@fontsource` so the desktop app works offline.
 - Light and dark follow `prefers-color-scheme`; `?theme=light|dark` forces one (screenshots, demos).
 - Viewport: three.js WebGL2, Z-up metres like the kernel, orthographic iso-feel default camera (eye in the -X/-Y/+Z octant), Top/Front/Right ortho views and a Persp view; 6 in grid; RGB axes; faces coloured with the mock's three face tokens by normal; edges from the kernel. Render on demand only. Middle button orbits, Shift+middle and right button pan, wheel zooms; the left button belongs to tools.
 - Coarse hover inference (screen space, edges occlusion-tested) shows OUR four colours with the mock's tip and legend. The real inference engine lives in `crates/inference` (inference lane).

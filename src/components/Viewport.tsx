@@ -260,7 +260,7 @@ export function Viewport(props: ViewportProps) {
       data-projection={camAttr.projection}
       data-camera={camAttr.eye}
       data-inference={marker?.kind ?? ""}
-      data-centre={centre ? centre.map((x) => x.toFixed(6)).join(",") : ""}
+      data-centre={centre ? centre.map((x) => x.toFixed(6).replace(/^-(?=0\.0+$)/, "")).join(",") : ""}
       data-selection={selectionCount ?? 0}
       data-hover={hoverKind ?? ""}
       data-nav={nav?.mode ?? ""}

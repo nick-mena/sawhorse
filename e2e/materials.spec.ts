@@ -76,7 +76,9 @@ test("paint a box from the library, sample it, position its texture, switch styl
   await page.mouse.up();
   await expect(hint(page)).toContainText("Texture positioned");
   const uv = await page.evaluate(() => (window as unknown as { __sawhorse: { parts(): { owner: number; index: number; uv?: { rotation?: number } }[] } }).__sawhorse.parts().find((p) => p.owner === 1 && p.index === 2)?.uv);
-  expect(Math.abs((uv?.rotation ?? 0) % 90)).toBeLessThan(5);
+  // Within 5 degrees of a quarter turn, from either side: a drag can land at 89.99999.
+  const off = Math.abs((uv?.rotation ?? 0) % 90);
+  expect(Math.min(off, 90 - off)).toBeLessThan(5);
   expect(uv?.rotation ?? 0).not.toBe(0);
   await page.keyboard.press("Escape");
 

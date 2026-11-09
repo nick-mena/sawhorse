@@ -1,9 +1,10 @@
 /* Design tokens, copied verbatim from the approved mock (docs/mock/sawhorse-mock.html, ADR-0003).
    Light by default, dark via prefers-color-scheme unless data-theme="light", forced dark via data-theme="dark".
+   This fork's accent is a warm marking colour for the chrome; --sel stays cool so a selection stands out on wood.
    Inference colours are OURS: endpoint lime, midpoint teal, on-edge amber, on-face violet. */
 :root{
   --bg:#edeeea; --panel:#f7f8f5; --rail:#e3e5df; --fg:#1d211f; --muted:#5f6660; --line:#c9cdc5;
-  --accent:#2a63a8; --accent-ink:#ffffff; --sel:#2a63a8;
+  --accent:#9c4f1f; --accent-ink:#ffffff; --sel:#2a63a8;
   --inf-end:#7bc043; --inf-mid:#17a2a0; --inf-edge:#e08a1e; --inf-face:#8a5cd6;
   /* Lane 3 inference extensions (ours): intersection raspberry, centre sky, parallel/perpendicular indigo,
      from-point and guides muted ink, grid sage; axis lines use the mock's axis colours. */
@@ -13,20 +14,23 @@
   --ok:#2e8b57; --warn:#c77d12;
   /* Lane 7 (ours): grain arrows, walnut brown; across-the-width grain a warmer copper. */
   --grain:#8a5a2b; --grain-across:#c0602a;
-  --display:"Barlow Condensed","Arial Narrow",Arial,sans-serif;
-  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
-  --mono:"IBM Plex Mono","Cascadia Mono",Consolas,monospace;
+  --display:"Open Sans","Segoe UI",Tahoma,sans-serif;
+  --body:"Open Sans","Segoe UI",Tahoma,system-ui,sans-serif;
+  --mono:"Noto Sans Mono","Cascadia Mono",Consolas,monospace;
+  /* Type roles, in rem so a larger system text size carries through. One open humanist family carries
+     every label and reading size, in the manner of a 3D package's chrome: sentence case, no tracking. Mono is for columns of numbers and code. 11px is the floor. */
+  --type-title:1.25rem; --type-heading:1.0625rem; --type-section:.8125rem; --type-body:.8125rem; --type-detail:.75rem; --type-micro:.6875rem;
 }
 @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
   --bg:#1a1d1b; --panel:#222623; --rail:#1f2320; --fg:#e8eae5; --muted:#9aa39b; --line:#3a403b;
-  --accent:#6ea3e4; --accent-ink:#0f1a28; --sel:#6ea3e4;
+  --accent:#e0935a; --accent-ink:#241408; --sel:#6ea3e4;
   --vp:#20242a; --vp-grid:#2f353c; --vp-axis:#5a636c; --face:#8a8470; --face-top:#a39c86; --face-side:#6f6a59; --edge:#e6e2d4;
   --inf-from:#a3aaa4; --inf-guide:#c9b48a; --inf-grid:#6d7a70; --inf-par:#7f8bf0; --inf-int:#e0659e; --inf-ctr:#6fb0ee;
   --grain:#d9a066; --grain-across:#f08a4b;
   --ok:#5ec98a; --warn:#e3a94a; color-scheme:dark } }
 :root[data-theme="dark"]{
   --bg:#1a1d1b; --panel:#222623; --rail:#1f2320; --fg:#e8eae5; --muted:#9aa39b; --line:#3a403b;
-  --accent:#6ea3e4; --accent-ink:#0f1a28; --sel:#6ea3e4;
+  --accent:#e0935a; --accent-ink:#241408; --sel:#6ea3e4;
   --vp:#20242a; --vp-grid:#2f353c; --vp-axis:#5a636c; --face:#8a8470; --face-top:#a39c86; --face-side:#6f6a59; --edge:#e6e2d4;
   --inf-from:#a3aaa4; --inf-guide:#c9b48a; --inf-grid:#6d7a70; --inf-par:#7f8bf0; --inf-int:#e0659e; --inf-ctr:#6fb0ee;
   --grain:#d9a066; --grain-across:#f08a4b;
