@@ -519,6 +519,14 @@ pub fn model_hash(m: &Model) -> u64 {
     if m.has_sections() {
         m.hash_sections(&mut h);
     }
+    // CNC drawings (ADR-0014): only when there is one, so older documents keep their hashes.
+    if !m.cnc_drawings.is_empty() {
+        h.tag("cnc");
+        for (id, json) in &m.cnc_drawings {
+            h.tag(&id.to_string());
+            h.tag(json);
+        }
+    }
     // Drawing sheets (lane 12): only when there is one.
     if !m.sheet_order.is_empty() {
         m.hash_sheets(&mut h);

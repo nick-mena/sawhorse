@@ -29,7 +29,7 @@ export interface UsePluginsArgs {
   showPane: () => void;
 }
 
-const ZIP = { description: "Sawhorse plugin (.zip)", mime: "application/zip", extensions: [".zip"] };
+const ZIP = { description: "BenchCraft plugin (.zip)", mime: "application/zip", extensions: [".zip"] };
 
 export function usePlugins({ bridge, toolHost, scene, selection, toolId, units, showPane }: UsePluginsArgs) {
   const [dialog, setDialog] = useState<PluginDialogState | null>(null);

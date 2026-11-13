@@ -122,6 +122,15 @@ struct DocState<'a> {
     /// The drawing style and the sun (lane 10); `null`: the defaults.
     style: Option<&'a sawhorse_kernel::looks::Style>,
     shadows: Option<&'a sawhorse_kernel::looks::Shadows>,
+    /// CNC drawings (ADR-0014): id and JSON, left out when there are none.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    cnc_drawings: Vec<CncDrawingInfo<'a>>,
+}
+
+#[derive(Debug, serde::Serialize)]
+struct CncDrawingInfo<'a> {
+    id: u64,
+    json: &'a str,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -478,6 +487,11 @@ impl DocCore {
                 .collect(),
             style: m.style(),
             shadows: m.shadows(),
+            cnc_drawings: m
+                .cnc_drawings()
+                .iter()
+                .map(|(&id, json)| CncDrawingInfo { id, json })
+                .collect(),
         };
         serde_json::to_string(&st).unwrap_or_else(|_| "{}".to_string())
     }

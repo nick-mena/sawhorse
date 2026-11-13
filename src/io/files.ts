@@ -33,7 +33,7 @@ export const MAX_READ_BYTES = { shz: 512 * 1024 * 1024, import: 256 * 1024 * 102
 /** A file over the size Sawhorse reads. */
 export class FileTooLarge extends Error {
   constructor(name: string, size: number, limit: number) {
-    super(`${name} is ${Math.round(size / 1024 / 1024)} MB; Sawhorse reads ${extensionOf(name) === ".shz" ? "documents" : extensionOf(name) === ".zip" ? "plugin packages" : "imports"} of at most ${Math.round(limit / 1024 / 1024)} MB`);
+    super(`${name} is ${Math.round(size / 1024 / 1024)} MB; BenchCraft reads ${extensionOf(name) === ".shz" ? "documents" : extensionOf(name) === ".zip" ? "plugin packages" : "imports"} of at most ${Math.round(limit / 1024 / 1024)} MB`);
     this.name = "FileTooLarge";
   }
 }
@@ -57,7 +57,10 @@ async function readTauriFile(path: string): Promise<Uint8Array> {
   return readFile(path);
 }
 
-export const SHZ: FileType = { description: "Sawhorse document", mime: "application/vnd.sawhorse.shz", extensions: [".shz"] };
+/** A reference image for the CNC workspace. */
+export const IMAGE_TYPES: FileType[] = [{ description: "Image (PNG or JPEG)", mime: "image/png", extensions: [".png", ".jpg", ".jpeg"] }];
+
+export const SHZ: FileType = { description: "BenchCraft document", mime: "application/vnd.sawhorse.shz", extensions: [".shz"] };
 
 export const IMPORT_TYPES: FileType[] = [
   { description: "SketchUp", mime: "application/vnd.sketchup.skp", extensions: [".skp"] },
@@ -104,7 +107,7 @@ export async function askUnsaved(name: string, doing: string): Promise<UnsavedAn
   if (isTauri()) {
     const { message } = await import("@tauri-apps/plugin-dialog");
     const answer = await message(`Do you want to save the changes to ${name} before ${doing}?`, {
-      title: "Sawhorse",
+      title: "BenchCraft",
       kind: "warning",
       buttons: { yes: "Save", no: "Don't Save", cancel: "Cancel" },
     });

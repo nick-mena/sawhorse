@@ -94,7 +94,10 @@ export function gridAfterScene(sc: Pick<SceneDef, "style" | "grid">, style: Styl
 }
 
 export interface StylePreset {
+  /** What a saved style names (kept, so files from before the rename still match). */
   name: string;
+  /** What the pane shows, when it differs from the saved name. */
+  label?: string;
   hint: string;
   style: FullStyle;
 }
@@ -103,7 +106,7 @@ const base = (o: Omit<Partial<FullStyle>, "edges"> & { name: string; edges?: Par
 
 /** The six presets of the Styles pane. Ours: chosen for a woodworker's drawing, not copied from any program. */
 export const STYLE_PRESETS: StylePreset[] = [
-  { name: "Sawhorse", hint: "Materials with textures, plain edges, the theme's background.", style: { ...fullStyle(null), preset: "Sawhorse" } },
+  { name: "Sawhorse", label: "BenchCraft", hint: "Materials with textures, plain edges, the theme's background.", style: { ...fullStyle(null), preset: "Sawhorse" } },
   { name: "Shop drawing", hint: "Hidden line on paper, heavy outlines, pencil overruns.", style: base({ name: "Shop drawing", face: "hidden_line", edges: { edges: true, profiles: true, extensions: true, endpoints: false }, background: [250, 248, 241] }) },
   { name: "Shaded", hint: "Material colours without textures, outlines heavier.", style: base({ name: "Shaded", face: "shaded", edges: { edges: true, profiles: true, extensions: false, endpoints: false } }) },
   { name: "X-ray", hint: "See-through faces: every edge, joinery inside included.", style: base({ name: "X-ray", face: "x_ray" }) },

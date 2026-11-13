@@ -4,17 +4,20 @@
 // was made. "Resolved" means: the eye ray, what is under the cursor (a pick) and where the
 // cursor snaps (an inference), both answered by the kernel worker.
 import type { KernelClient } from "../kernel/client";
-import type { CapHit, Inference, InferQuery, Picked, SurfaceHit, V3 } from "../kernel/types";
+import type { CapHit, Inference, InferQuery, MeshData, Picked, SurfaceHit, V3 } from "../kernel/types";
 import type { ViewportPointer } from "../components/Viewport";
 import type { ViewportEngine } from "../viewport/engine";
 import { INFERENCE_STYLES } from "../lib/inferenceStyle";
 import type { InferContext, Snap, Tool, ToolEvent, ToolEventType } from "./tool";
 import { DRAG_PX } from "./select";
+import { add, cross, dot, len, mul, sub, unit } from "./draw";
+import { meshNear } from "./xform";
 
 export interface Resolver {
   /** Resolve a canvas position to a pick and a snap for the active tool's context. */
   (x: number, y: number, ctx: InferContext, mods: { shift: boolean; ctrl: boolean; alt: boolean }): Promise<{
     ray: { origin: V3; dir: V3 };
+    forward?: V3;
     picked: Picked | null;
     snap: Snap | null;
   } | null>;
@@ -58,6 +61,8 @@ const ANCHOR_KINDS = new Set(["endpoint", "midpoint", "intersection", "centre", 
  */
 export class InferenceMemory {
   anchors: V3[] = [];
+  /** What each anchor was, to tell after an edit whether it still is. */
+  private kinds = new WeakMap<V3, string>();
   refs: [V3, V3][] = [];
   static MAX_ANCHORS = 2;
 
@@ -65,14 +70,71 @@ export class InferenceMemory {
     if (!inf) return;
     if (ANCHOR_KINDS.has(inf.kind)) {
       const p = inf.point;
+      this.kinds.set(p, inf.kind);
       this.anchors = [p, ...this.anchors.filter((a) => Math.hypot(a[0] - p[0], a[1] - p[1], a[2] - p[2]) > 1e-9)].slice(0, InferenceMemory.MAX_ANCHORS);
     }
     if (inf.edge) this.refs = [inf.edge];
   }
 
-  forget(): void {
-    this.anchors = [];
-    this.refs = [];
+  /** After an edit, keep only what is still there: anything else would go on offering snaps
+   * to something no longer on screen. */
+  retain(mesh: MeshData | null, guides: GuideLine[]): void {
+    if (!mesh) {
+      this.anchors = [];
+      this.refs = [];
+      return;
+    }
+    this.anchors = this.anchors.filter((p) => anchorStands(this.kinds.get(p), p, mesh, guides));
+    this.refs = this.refs.filter(([a, b]) => someEdge(mesh, (c, d) => (meshNear(a, c) && meshNear(b, d)) || (meshNear(a, d) && meshNear(b, c))));
+  }
+}
+
+type GuideLine = { point: V3; dir: V3 | null };
+
+function someEdge(mesh: MeshData, test: (a: V3, b: V3) => boolean): boolean {
+  const e = mesh.edges;
+  for (let i = 0; i + 5 < e.length; i += 6) {
+    if (test([e[i], e[i + 1], e[i + 2]], [e[i + 3], e[i + 4], e[i + 5]])) return true;
+  }
+  return false;
+}
+
+/** Whether a line through `a` along unit `d` passes within tolerance of `p`. */
+function onLine(p: V3, a: V3, d: V3): boolean {
+  const v = sub(p, a);
+  return len(sub(v, mul(d, dot(v, d)))) <= 2e-6 + 4e-7 * Math.max(Math.abs(p[0]), Math.abs(p[1]), Math.abs(p[2]));
+}
+
+/** A crossing stands while two lines that are not parallel still pass through it. */
+function crossingStands(p: V3, mesh: MeshData, guides: GuideLine[]): boolean {
+  let first: V3 | null = null;
+  const another = (d: V3) => {
+    if (!first) first = d;
+    return len(cross(first, d)) > 1e-6;
+  };
+  for (const g of guides) if (g.dir && onLine(p, g.point, g.dir) && another(unit(g.dir))) return true;
+  return someEdge(mesh, (a, b) => {
+    const span = len(sub(b, a));
+    if (span < 1e-12) return false;
+    const d = unit(sub(b, a));
+    const along = dot(sub(p, a), d);
+    return along >= -1e-6 && along <= span + 1e-6 && onLine(p, a, d) && another(d);
+  });
+}
+
+function anchorStands(kind: string | undefined, p: V3, mesh: MeshData, guides: GuideLine[]): boolean {
+  switch (kind) {
+    case "guide-point":
+      return guides.some((g) => !g.dir && meshNear(p, g.point));
+    case "endpoint":
+      return someEdge(mesh, (a, b) => meshNear(p, a) || meshNear(p, b));
+    case "midpoint":
+      return someEdge(mesh, (a, b) => meshNear(p, mul(add(a, b), 0.5)));
+    case "intersection":
+      return crossingStands(p, mesh, guides);
+    default:
+      // A centre has no point of its own in the view mesh to check against.
+      return false;
   }
 }
 
@@ -90,7 +152,7 @@ export function kernelResolver(
     if (!eng) return null;
     const ray = eng.ray(x, y);
     const px = eng.pixelScale();
-    if (!k) return { ray, picked: null, snap: snapFromPick(null, ray) };
+    if (!k) return { ray, forward: px.forward, picked: null, snap: snapFromPick(null, ray) };
     const q: InferQuery = {
       origin: ray.origin,
       dir: ray.dir,
@@ -114,7 +176,7 @@ export function kernelResolver(
     onInference?.(inf, q);
     const raw: Picked | null = inf?.picked ?? null;
     const picked: Picked | null = raw ? { ...raw, surface: splitCap(raw.surface).surface } : null;
-    return { ray, picked, snap: inf ? snapOf(inf) : snapFromPick(null, ray) };
+    return { ray, forward: px.forward, picked, snap: inf ? snapOf(inf) : snapFromPick(null, ray) };
   };
 }
 
@@ -208,7 +270,7 @@ export class ToolDriver {
     const tool = this.tool();
     const r = await this.resolve(p.x, p.y, tool.inferContext(), this.lastMods);
     if (!r) return;
-    const e: ToolEvent = { type, x: p.x, y: p.y, start, shift: p.shift, ctrl: p.ctrl, alt: p.alt, ray: r.ray, picked: r.picked, snap: r.snap };
+    const e: ToolEvent = { type, x: p.x, y: p.y, start, shift: p.shift, ctrl: p.ctrl, alt: p.alt, ray: r.ray, forward: r.forward, picked: r.picked, snap: r.snap };
     // The tool may have changed while the query was in flight.
     if (this.tool() === tool) tool.onEvent(e);
   }

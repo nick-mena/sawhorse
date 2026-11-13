@@ -42,7 +42,7 @@ export function wrap(text: string, size: number, width: number, bold = false): s
 
 /** The printable report as a PDF. `title`: the model's name. */
 export function reportPdf(list: CutList, title: string): Uint8Array {
-  const doc = new PdfDoc({ title: `Cut list: ${title}`, creator: "Sawhorse" });
+  const doc = new PdfDoc({ title: `Cut list: ${title}`, creator: "BenchCraft" });
   const [W, H] = LETTER;
   const top = H - 48;
   const bottom = 64;
@@ -112,7 +112,7 @@ export function reportPdf(list: CutList, title: string): Uint8Array {
   doc.pages.forEach((p, i) => {
     const lines = wrap(scopeNote(list.rounding), 7.5, W - 80);
     lines.forEach((l, k) => p.text(40, 40 - k * 10 + (lines.length - 1) * 10, l, 7.5, { gray: 0.4 }));
-    p.text(W - 40, 22, `Page ${i + 1} of ${doc.pages.length} · Sawhorse`, 7.5, { align: "right", gray: 0.4 });
+    p.text(W - 40, 22, `Page ${i + 1} of ${doc.pages.length} · BenchCraft`, 7.5, { align: "right", gray: 0.4 });
   });
   return doc.bytes();
 }
@@ -133,7 +133,7 @@ export function labelSlot(k: number): { page: number; x: number; y: number } {
  * A part that is not a solid says so on its material line; a part left out of the totals
  * gets no label (lane 15). */
 export function labelsPdf(list: CutList, title: string, opts: { outlines?: boolean } = {}): Uint8Array {
-  const doc = new PdfDoc({ title: `Labels: ${title}`, creator: "Sawhorse" });
+  const doc = new PdfDoc({ title: `Labels: ${title}`, creator: "BenchCraft" });
   const { width: w, height: h } = LABEL_SHEET;
   // Numbered from the whole list, so a label's mark is the one on the diagrams.
   const numbered = list.rows.map((row, i) => ({ row, mark: String(i + 1) }));

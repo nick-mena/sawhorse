@@ -35,7 +35,7 @@ describe("reading files", () => {
     await expect(readBrowserFile(file)).rejects.toBeInstanceOf(FileTooLarge);
     expect(read).not.toHaveBeenCalled();
     const doc = claimed("huge.shz", 3 * 1024 * 1024 * 1024);
-    await expect(readBrowserFile(doc.file)).rejects.toThrow("Sawhorse reads documents of at most 512 MB");
+    await expect(readBrowserFile(doc.file)).rejects.toThrow("BenchCraft reads documents of at most 512 MB");
     expect(doc.read).not.toHaveBeenCalled();
   });
 
@@ -47,7 +47,7 @@ describe("reading files", () => {
   });
 
   it("checkSize names the file, its size and the limit", () => {
-    expect(() => checkSize("C/models/big.zip", 100 * 1024 * 1024)).toThrow("big.zip is 100 MB; Sawhorse reads plugin packages of at most 64 MB");
+    expect(() => checkSize("C/models/big.zip", 100 * 1024 * 1024)).toThrow("big.zip is 100 MB; BenchCraft reads plugin packages of at most 64 MB");
     expect(() => checkSize("small.zip", 1024)).not.toThrow();
   });
 });

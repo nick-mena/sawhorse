@@ -30,6 +30,10 @@ export type KernelOp =
   | { op: "erase_face"; object: number; face: number }
   | { op: "erase_region"; sketch: number; region: number }
   | { op: "batch"; ops: KernelOp[] }
+  /** A new solid straight from a closed outline and its holes, the first ring the outline (ADR-0014). */
+  | { op: "extrude_profile"; origin: V3; normal: V3; rings: { points: V3[]; smooth: number[] }[]; distance: number; name?: string }
+  /** Keep a CNC drawing with the model as JSON, or drop it (ADR-0014). */
+  | { op: "set_cnc_drawing"; id: number; json?: string }
   | { op: "add_guide"; point: [number, number, number]; dir: [number, number, number] | null }
   | { op: "erase_guide"; guide: number }
   | { op: "delete_guides" }
@@ -348,6 +352,7 @@ export type OpOutcome =
   | { kind: "annotation_erased" }
   | { kind: "drawn"; sketch: number | null; regions: number[]; faces: number[]; inside: number | null; /** Lane 23: the curve the stroke became. */ curve?: number }
   | { kind: "batch"; outcomes: OpOutcome[] }
+  | { kind: "cnc_drawing_set"; id: number }
   | { kind: "group_created"; group: number }
   | { kind: "group_deleted" }
   | { kind: "context_changed"; context: number | null }
@@ -443,6 +448,8 @@ export interface DocState {
   scenes: SceneDef[];
   /** Texture images the model holds (lane 10). */
   textures?: TextureInfo[];
+  /** CNC drawings kept with the model (ADR-0014): untrusted JSON, read through src/cnc/design.ts. */
+  cnc_drawings?: { id: number; json: string }[];
   /** The drawing style and the sun (null: the defaults). */
   style?: Style | null;
   shadows?: Shadows | null;

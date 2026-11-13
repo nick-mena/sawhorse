@@ -48,6 +48,8 @@ export interface ToolEvent {
   ctrl: boolean;
   alt: boolean;
   ray: { origin: V3; dir: V3 };
+  /** Which way the camera looks: the same across the view, unlike a perspective ray. */
+  forward?: V3;
   picked: Picked | null;
   snap: Snap | null;
 }
@@ -152,7 +154,8 @@ export abstract class Tool {
   }
   /** Shift went down or up (some tools lock the current inference while it is held). */
   onShift(_down: boolean): void {}
-  /** Ctrl or Alt was tapped (Move and Rotate toggle copying; Move toggles autofold). */
+  /** Ctrl or Alt was tapped (Move and Rotate toggle copying; Move toggles autofold; Push/Pull
+   * toggles pulling out a new face). */
   onModifier(_key: "ctrl" | "alt"): void {}
   /** Enter in the Value Control Box. */
   onValue(_text: string): void {}

@@ -22,7 +22,6 @@ export class ArcTool extends StrokeTool {
   private variant: Variant = "arc2";
   private pts: V3[] = [];
   private snaps: Snap[] = [];
-  private viewDir: V3 = [0, 0, -1];
   segments = DEFAULT_ARC_SEGMENTS;
 
   start(): V3 | null {
@@ -56,7 +55,6 @@ export class ArcTool extends StrokeTool {
   onEvent(e: ToolEvent): void {
     if (e.type === "move" || e.type === "drag") {
       this.track(e);
-      this.viewDir = e.ray.dir;
       const g = this.preview();
       if (this.variant === "arc2" && this.pts.length === 2 && this.plane && this.cursor) this.host.showValue(this.host.fmt(Math.abs(bulgeFromPoint(this.plane.frame, this.pts[0], this.pts[1], this.cursor))));
       else if (this.pts.length === 1 && this.cursor) this.host.showValue(this.host.fmt(dist(this.pts[0], this.cursor)));

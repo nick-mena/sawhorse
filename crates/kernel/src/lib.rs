@@ -39,6 +39,7 @@ pub mod offset;
 pub mod paper;
 pub mod parts;
 pub mod plane;
+pub mod profile;
 pub mod push;
 pub mod refbatch;
 pub mod section;

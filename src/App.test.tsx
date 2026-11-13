@@ -188,7 +188,7 @@ describe("App shell", () => {
     expect(screen.getByTestId("materials")).toBeTruthy();
     expect(screen.getByText("No material")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Styles" }));
-    expect(screen.getAllByRole("button", { name: /Sawhorse|Shop drawing|Shaded|X-ray|Clay|Outdoors/ })).toHaveLength(6);
+    expect(screen.getAllByRole("button", { name: /BenchCraft|Shop drawing|Shaded|X-ray|Clay|Outdoors/ })).toHaveLength(6);
     expect(screen.getByLabelText("Time")).toBeTruthy();
   });
 

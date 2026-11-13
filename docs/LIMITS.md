@@ -94,6 +94,7 @@ Every limit below is checked where the work it bounds starts, before memory is s
 | Scenes | 1,000 | Lane 16b. Each is a tab with its own camera, style and hidden tags. |
 | Section planes | 1,000 | Lane 16b. Each active one adds a clipping set to every material it reaches. |
 | Drawing sheets | 200 sheets, 2,000 items per sheet | Lane 12; each item is a drawing of the model. |
+| CNC drawings | 256 in a model, 512 KB each, 2 MB in all; 50,000 points in one part | The state sent to the window after every edit carries them. A reference image is a texture, under the limits on the next row. |
 | Texture images | 512; 16 MB, 4096 x 4096 pixels each; 256 MB and 128 million pixels in all | The browser decodes an image to 4 bytes a pixel and keeps mipmaps: a 300 KB PNG can say 16384 x 16384, which is 1 GB decoded; sixteen legal 4096 x 4096 images of one colour (a few hundred kilobytes of `.shz`) were a gigabyte, and 512 of them would have been tens. The pixels of all of them together are counted, from their headers, before any is drawn. |
 | What the view decodes of them | each at most 2048 x 2048, all together within 32 million pixels (128 MB), one image at a time; the swatches in the Materials pane are small copies (96 pixels a side) | A texture tiles over a face, and a view of the whole model does not show more. A model with many large images draws each a little coarser; the file keeps them at full size. |
 | An array or copy | refused before any copy is made when the copies (and everything inside copied groups and components) would pass the limits above | |

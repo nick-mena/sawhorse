@@ -51,7 +51,7 @@ test("a circle moves by a typed distance and by inference, turns 45 degrees and 
   await page.keyboard.press("Escape");
   // The circle: centre at the origin, its first point at (6, 0), 24 segments.
   await page.keyboard.press("c");
-  await clickAt(page, [0, 0, 0], /grid|endpoint|axis/);
+  await clickAt(page, [0, 0, 0], /grid|endpoint|origin|axis/);
   await point(page, [6, 0, 0]);
   await type(page, "6");
   await expect(hint).toContainText("Circle r 6 in");

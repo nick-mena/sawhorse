@@ -24,6 +24,7 @@
 import type { EditResult } from "../kernel/client";
 import type { Entity, KernelOp, V3, Xform } from "../kernel/types";
 import { INFERENCE_STYLES } from "../lib/inferenceStyle";
+import { clipBase, type Clip } from "../lib/clipboard";
 import { parseVcb } from "../lib/vcb";
 import { dirName, dist, len, mul, sub, unit } from "./draw";
 import { LockState } from "./lock";
@@ -65,6 +66,11 @@ export function moveOp(subject: Subject, delta: V3, copy: boolean, count = 1, au
   return objectsOp(subject, xform, copy, count);
 }
 
+interface Pasting {
+  cut: boolean;
+  placed?: () => void;
+}
+
 export class MoveTool extends Tool {
   readonly id = "move" as const;
   private g: Gesture | null = null;
@@ -77,6 +83,8 @@ export class MoveTool extends Tool {
   private fresh = false;
   /** The selection the gesture started from (lane 22: sketch geometry's follows it). */
   private sel: Entity[] = [];
+  /** Set while a paste is on the cursor (lib/clipboard.ts). */
+  private pasting: Pasting | null = null;
   last: LastMove | null = null;
 
   valueLabel(): string {
@@ -91,7 +99,26 @@ export class MoveTool extends Tool {
     this.g = null;
     this.fresh = false;
     this.copy = false;
+    this.pasting = null;
     this.lock.clear();
+  }
+
+  /** Put the clip on the cursor: it follows until a click, a typed distance or Esc. */
+  paste(clip: Clip, placed?: () => void): void {
+    const h = this.host;
+    this.reset();
+    const { subject } = clip;
+    const sk = sketchPreviews(subject, h.mesh());
+    const from = clipBase(subject, h.state(), sk, h.mesh());
+    if (!from) return void h.status("What you copied isn't drawn at the moment, so it can't be placed. Show it first.", true);
+    this.pasting = { cut: clip.cut, placed };
+    this.copy = !clip.cut;
+    this.sel = [];
+    this.last = null;
+    this.g = { subject, from, to: null, edges: subjectEdges(subject, h.mesh()), sk, dragging: false };
+    h.hover(null);
+    h.status(`${clip.cut ? "Moving" : "Pasting"} ${describeSubject(subject, h.mesh())}: move to where it goes and click, or type a distance. Esc cancels.`);
+    h.changed();
   }
 
   activate(): void {
@@ -126,6 +153,7 @@ export class MoveTool extends Tool {
 
   onModifier(key: "ctrl" | "alt"): void {
     if (key === "ctrl") {
+      if (this.pasting) return;
       this.copy = !this.copy;
       const g = this.g;
       if (g) this.host.status(this.gestureStatus(g.subject));
@@ -273,14 +301,16 @@ export class MoveTool extends Tool {
 
   private commit(delta: V3, ctrl: boolean): void {
     const g = this.g;
-    const copy = this.copy || ctrl;
+    const pasting = this.pasting;
+    // A paste is what was asked for at Copy or Cut; Cmd may still be down from Cmd+V.
+    const copy = pasting ? !pasting.cut : this.copy || ctrl;
     this.reset();
     this.host.changed();
     if (!g || len(delta) < MIN_MOVE) return;
-    void this.apply(g.subject, delta, copy, 1, this.sel, g.sk);
+    void this.apply(g.subject, delta, copy, 1, this.sel, g.sk, pasting);
   }
 
-  private async apply(subject: Subject, delta: V3, copy: boolean, count: number, sel: Entity[] = [], sk: SketchPreview[] = []): Promise<void> {
+  private async apply(subject: Subject, delta: V3, copy: boolean, count: number, sel: Entity[] = [], sk: SketchPreview[] = [], pasting: Pasting | null = null): Promise<void> {
     const h = this.host;
     const op = moveOp(subject, delta, copy, count, this.autofold);
     // Named before the edit (lane 22): a region lifted onto another plane is another one after it.
@@ -288,6 +318,7 @@ export class MoveTool extends Tool {
     const how = `${h.fmt(len(delta))} ${h.unitLabel()} along ${dirName(delta)}`;
     const r = await h.apply(op, (res: EditResult) => {
       const o = res.outcome;
+      if (pasting) return pasting.cut ? `Moved ${what} to where you pasted it.` : `Pasted ${what}.`;
       if (isCopied(o) && count > 1) return `Array: ${count} copies of ${what}, ${how} apart. Type another count, or a distance.`;
       if (isCopied(o)) return `Copied ${what} ${how}. Type x3 for more copies, or /4 to divide the distance.`;
       if (o.kind === "geometry_moved") return `Moved ${what} ${how}${o.faces.length ? ` (${o.faces.length} faces changed)` : ""}.`;
@@ -295,6 +326,14 @@ export class MoveTool extends Tool {
     });
     // Only Move can fold, so the way out is said here and not in the kernel's refusal.
     if (!r && h.lastError()?.includes("bend a face")) h.status(`${h.lastError()}. Tap Alt to let it fold, then move again.`, true);
+    if (r && pasting) {
+      pasting.placed?.();
+      // What was pasted is what the next command is for.
+      if (r.outcome.kind === "copied") h.setSelection([...r.outcome.objects.map((object): Entity => ({ kind: "object", object })), ...(r.outcome.nodes ?? []).map((node): Entity => ({ kind: "node", node }))]);
+      // Selected sketch geometry names points that are somewhere else now.
+      else if (!pasting.cut || subject.sketches?.length) h.setSelection([]);
+      return;
+    }
     if (r) {
       this.last = { subject, delta, copy: copy && subject.kind === "objects", count, sel, sk };
       h.showValue(h.fmt(len(delta)));

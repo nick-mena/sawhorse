@@ -130,18 +130,18 @@ test("save as .shz, start a new model, open the file again", async ({ page }) =>
   const vp = await ready(page);
   await pick(page, "parts.stl", stlBoxes([{ at: [0, 0, 0], size: [40, 40, 40] }, { at: [100, 0, 0], size: [20, 30, 10] }]));
   await expect(vp).toHaveAttribute("data-objects", "2");
-  await expect(page).toHaveTitle("• Untitled - Sawhorse");
+  await expect(page).toHaveTitle("• Untitled - BenchCraft");
   const hash = await vp.getAttribute("data-hash");
   const saved = await download(page, () => page.keyboard.press("Control+s"));
   expect(saved.name).toBe("Untitled.shz");
   expect(saved.bytes.subarray(30, 38).toString()).toBe("mimetype");
-  await expect(page).toHaveTitle("Untitled - Sawhorse");
+  await expect(page).toHaveTitle("Untitled - BenchCraft");
   await menu(page, "File", "New");
   await expect(vp).toHaveAttribute("data-objects", "0");
   await pick(page, "parts.shz", saved.bytes);
   await expect(vp).toHaveAttribute("data-objects", "2");
   await expect(vp).toHaveAttribute("data-hash", hash!);
-  await expect(page).toHaveTitle("parts - Sawhorse");
+  await expect(page).toHaveTitle("parts - BenchCraft");
   // Nothing to undo in a freshly opened file.
   await expect(page.locator(".hud")).toContainText("undo 0");
 });
@@ -163,10 +163,10 @@ test("over unsaved changes, Open and New wait for the answer, even the desktop's
   await pick(page, "parts.stl", stlBoxes([{ at: [0, 0, 0], size: [40, 40, 40] }]));
   await expect(vp).toHaveAttribute("data-objects", "1");
   const saved = await download(page, () => page.keyboard.press("Control+s"));
-  await expect(page).toHaveTitle("Untitled - Sawhorse");
+  await expect(page).toHaveTitle("Untitled - BenchCraft");
   await pick(page, "more.stl", stlBoxes([{ at: [100, 0, 0], size: [20, 30, 10] }]));
   await expect(vp).toHaveAttribute("data-objects", "2");
-  await expect(page).toHaveTitle("• Untitled - Sawhorse");
+  await expect(page).toHaveTitle("• Untitled - BenchCraft");
 
   await pick(page, "parts.shz", saved.bytes);
   await expect.poll(asked).toEqual(["Discard the unsaved changes to this model?"]);
@@ -181,7 +181,7 @@ test("over unsaved changes, Open and New wait for the answer, even the desktop's
   await page.evaluate(() => ((window as unknown as { __answer: boolean }).__answer = true));
   await pick(page, "parts.shz", saved.bytes);
   await expect(vp).toHaveAttribute("data-objects", "1");
-  await expect(page).toHaveTitle("parts - Sawhorse");
+  await expect(page).toHaveTitle("parts - BenchCraft");
 });
 
 test("a model that lost a solid still saves and opens (upstream #21, #35)", async ({ page }) => {
@@ -194,12 +194,12 @@ test("a model that lost a solid still saves and opens (upstream #21, #35)", asyn
   await pick(page, "two.stl", stlBoxes([{ at: [100, 0, 0], size: [20, 30, 10] }]));
   await expect(vp).toHaveAttribute("data-objects", "1");
   const saved = await download(page, () => page.keyboard.press("Control+s"));
-  await expect(page).toHaveTitle("Untitled - Sawhorse");
+  await expect(page).toHaveTitle("Untitled - BenchCraft");
   await menu(page, "File", "New");
   await expect(vp).toHaveAttribute("data-objects", "0");
   await pick(page, "back.shz", saved.bytes);
   await expect(vp).toHaveAttribute("data-objects", "1");
-  await expect(page).toHaveTitle("back - Sawhorse");
+  await expect(page).toHaveTitle("back - BenchCraft");
 });
 
 test("an edit made while a save is under way stays unsaved", async ({ page }) => {
@@ -227,7 +227,7 @@ test("an edit made while a save is under way stays unsaved", async ({ page }) =>
   await expect(vp).toHaveAttribute("data-objects", "2");
   await page.evaluate(() => (window as unknown as { __release: () => void }).__release());
   await expect(page.locator("footer, .status").getByText("Saved held.shz").first()).toBeVisible();
-  await expect(page).toHaveTitle("• held - Sawhorse");
+  await expect(page).toHaveTitle("• held - BenchCraft");
 });
 
 test("drag and drop: an SVG becomes sketch regions on the ground", async ({ page }) => {

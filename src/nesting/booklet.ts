@@ -204,7 +204,7 @@ function piecePages(doc: PdfDoc, n: Nesting, piece: StockPiece, title: string, r
 
 /** The booklet. `title`: the model's name. */
 export function nestingPdf(n: Nesting, title: string, r: Units): Uint8Array {
-  const doc = new PdfDoc({ title: `Nesting: ${title}`, creator: "Sawhorse" });
+  const doc = new PdfDoc({ title: `Nesting: ${title}`, creator: "BenchCraft" });
   summaryPages(doc, n, title, r);
   for (const piece of n.pieces) piecePages(doc, n, piece, title, r);
   return doc.bytes();

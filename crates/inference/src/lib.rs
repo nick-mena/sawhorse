@@ -42,6 +42,12 @@ pub enum InferenceKind {
     FromPoint,
     OnGuide,
     GuidePoint,
+    /// The model's origin, where the axes meet.
+    Origin,
+    /// On the drawn red, green or blue axis itself (not a direction from the start point).
+    OnAxisX,
+    OnAxisY,
+    OnAxisZ,
     Grid,
     Free,
 }
@@ -52,10 +58,10 @@ impl InferenceKind {
     pub fn priority(self) -> u8 {
         match self {
             Self::Endpoint => 0,
-            Self::Intersection | Self::Centre | Self::GuidePoint => 1,
+            Self::Intersection | Self::Centre | Self::GuidePoint | Self::Origin => 1,
             Self::Midpoint => 1,
             Self::FromPoint => 2,
-            Self::OnEdge | Self::OnGuide => 3,
+            Self::OnEdge | Self::OnGuide | Self::OnAxisX | Self::OnAxisY | Self::OnAxisZ => 3,
             Self::AxisX | Self::AxisY | Self::AxisZ | Self::Parallel | Self::Perpendicular => 4,
             Self::OnFace => 5,
             Self::Grid => 6,
@@ -66,15 +72,15 @@ impl InferenceKind {
     /// CSS custom property holding this inference's colour in the UI.
     pub fn css_token(self) -> &'static str {
         match self {
-            Self::Endpoint => "--inf-end",
+            Self::Endpoint | Self::Origin => "--inf-end",
             Self::Midpoint => "--inf-mid",
             Self::OnEdge => "--inf-edge",
             Self::OnFace => "--inf-face",
             Self::Intersection => "--inf-int",
             Self::Centre => "--inf-ctr",
-            Self::AxisX => "--axis-x",
-            Self::AxisY => "--axis-y",
-            Self::AxisZ => "--axis-z",
+            Self::AxisX | Self::OnAxisX => "--axis-x",
+            Self::AxisY | Self::OnAxisY => "--axis-y",
+            Self::AxisZ | Self::OnAxisZ => "--axis-z",
             Self::Parallel | Self::Perpendicular => "--inf-par",
             Self::FromPoint => "--inf-from",
             Self::OnGuide | Self::GuidePoint => "--inf-guide",
@@ -86,15 +92,15 @@ impl InferenceKind {
     /// Light-theme colour value, for exporters and tests.
     pub fn colour(self) -> &'static str {
         match self {
-            Self::Endpoint => "#7bc043",
+            Self::Endpoint | Self::Origin => "#7bc043",
             Self::Midpoint => "#17a2a0",
             Self::OnEdge => "#e08a1e",
             Self::OnFace => "#8a5cd6",
             Self::Intersection => "#c2417f",
             Self::Centre => "#3b8fd9",
-            Self::AxisX => "#c0392b",
-            Self::AxisY => "#27ae60",
-            Self::AxisZ => "#2a63a8",
+            Self::AxisX | Self::OnAxisX => "#c0392b",
+            Self::AxisY | Self::OnAxisY => "#27ae60",
+            Self::AxisZ | Self::OnAxisZ => "#2a63a8",
             Self::Parallel | Self::Perpendicular => "#4d5bd1",
             Self::FromPoint => "#6b726c",
             Self::OnGuide | Self::GuidePoint => "#7a6a4f",
@@ -112,14 +118,15 @@ impl InferenceKind {
             Self::OnFace => "On Face",
             Self::Intersection => "Intersection",
             Self::Centre => "Centre",
-            Self::AxisX => "On Red Axis",
-            Self::AxisY => "On Green Axis",
-            Self::AxisZ => "On Blue Axis",
+            Self::AxisX | Self::OnAxisX => "On Red Axis",
+            Self::AxisY | Self::OnAxisY => "On Green Axis",
+            Self::AxisZ | Self::OnAxisZ => "On Blue Axis",
             Self::Parallel => "Parallel to Edge",
             Self::Perpendicular => "Perpendicular to Edge",
             Self::FromPoint => "From Point",
             Self::OnGuide => "On Guide",
             Self::GuidePoint => "Guide Point",
+            Self::Origin => "Origin",
             Self::Grid => "Grid",
             Self::Free => "",
         }
@@ -140,6 +147,10 @@ impl InferenceKind {
     }
 
     /// Snaps to a point (as opposed to along a line or on a surface).
+    pub fn is_on_axis(self) -> bool {
+        matches!(self, Self::OnAxisX | Self::OnAxisY | Self::OnAxisZ)
+    }
+
     pub fn is_point(self) -> bool {
         self.priority() <= 2
     }

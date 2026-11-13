@@ -364,4 +364,40 @@ describe("Move tool", () => {
     expect(ops(h).at(-1)).toMatchObject({ op: "transform_sketch", points: [[1, 1, 0]] });
     expect(h.sel).toEqual([{ ...corner, at: [1.5, 1.25, 0] }]);
   });
+
+  describe("pasting", () => {
+    const state = { solids: [{ id: 1, number: 1, min: [0, 0, 0], max: [1, 1, 1], volume: 1 }], sketches: [] } as unknown as DocState;
+
+    it("Cmd held on the placing click does not turn a cut into a copy", async () => {
+      const h = fakeHost({ _state: state, outcome: { kind: "transformed", objects: [1] } });
+      const t = new MoveTool(h);
+      t.paste({ subject: { kind: "objects", objects: [1] }, cut: true });
+      t.onEvent(ev("move", [3, 0, 0]));
+      t.onEvent(ev("down", [3, 0, 0]));
+      t.onEvent(ev("click", [3, 0, 0], { ctrl: true }));
+      await tick();
+      expect(ops(h)[0].op).toBe("transform");
+    });
+
+    it("moving cut sketch geometry lets go of the selection, whose points are now elsewhere", async () => {
+      const sel: Entity[] = [{ kind: "edge", owner: { kind: "sketch", id: 2 }, a: [0, 0, 0], b: [1, 0, 0], drawn: true, flags: 0 } as unknown as Entity];
+      const part = { sketch: 2, points: [], edges: [[[0, 0, 0], [1, 0, 0]]], regions: [], rings: [], moving: [[0, 0, 0], [1, 0, 0]] };
+      const h = fakeHost({ _state: state, sel, outcome: { kind: "sketch_transformed" } as never });
+      const t = new MoveTool(h);
+      t.paste({ subject: { kind: "objects", objects: [1], sketches: [part] } as never, cut: true });
+      t.onEvent(ev("move", [3, 0, 0]));
+      t.onEvent(ev("down", [3, 0, 0]));
+      t.onEvent(ev("click", [3, 0, 0]));
+      await tick();
+      expect(h.sel).toEqual([]);
+    });
+
+    it("says so when it cannot tell where the cursor should hold it", () => {
+      const h = fakeHost({ _state: { ...state, solids: [] } as DocState });
+      const t = new MoveTool(h);
+      t.paste({ subject: { kind: "objects", objects: [1] }, cut: false });
+      expect(h.statuses.at(-1)?.error).toBe(true);
+      expect(t.busy()).toBe(false);
+    });
+  });
 });

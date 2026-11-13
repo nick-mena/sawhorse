@@ -66,7 +66,7 @@ The view keeps a look-at point on the line of sight at the depth of whatever you
 | C again | Polygon | As Circle | a radius; `6s` sets sides (6 by default) |
 | A | Arc | Click both ends, then pull out the bulge. Draws one curve | a bulge length, `12r` radius, `12s` segments |
 | A again | 3-Point Arc | Click the start, a point it passes through, then the end | - |
-| P | Push/Pull | Press on a face and drag, then release; or click, move, click. Double-click repeats the last distance. Hold Ctrl when you let go to pull out a new face. | a distance (negative flips it) |
+| P | Push/Pull | Press on a face and drag, then release; or click, move, click. Double-click repeats the last distance. Pulling moves the face, which is what you want to resize a board. To pull out a new face and leave a seam where the old one was, tap Ctrl (Cmd on a Mac) before you finish; the preview turns green and shows +. | a distance (negative flips it) |
 | M | Move | Click a solid or a sketch shape (or select first), move, click; or drag. Ctrl copies. With faces, edges or points selected, moves that part (Alt: autofold). | a distance; after a copy `x3`, `3x`, `*3` or `/4` |
 | Q | Rotate | Click the centre on the protractor's plane, the start of the angle, then the end. Ctrl copies. A sketch shape turns on its own plane. | an angle in degrees (`90`, `-22.5`, `30deg`); after a copy `x3` or `/4` |
 | S | Scale | Drag a grip on the selection's box (or click it, move, click). Shift: uniform. Ctrl: about the centre. Works on sketch shapes too. | a factor (`2`, `0.5`, `-1`), three factors (`2,1,0.5`), or a size with a unit (`30in`) |
@@ -77,6 +77,8 @@ The view keeps a look-at point on the line of sight at the depth of whatever you
 | B | Paint | Click a face to paint it with the active material; a closed group or component takes it as its default; Ctrl+click paints the whole solid; click something selected to paint the whole selection. Alt+click picks a material up. Double-click a textured face to move, turn or scale its texture with the handles. | - |
 | Shift+Z | | Zoom extents | |
 | Ctrl+Z / Ctrl+Y | | Undo / redo (Ctrl+Shift+Z also redoes) | |
+| Ctrl+C, Ctrl+X | | Copy or Cut the selection (a selected face or edge means its whole solid). What you cut stays in place until you paste it | |
+| Ctrl+V | | Paste: what you copied follows the cursor until you click where it goes; Esc cancels | a distance along the way the cursor shows |
 | Ctrl+A | | Select all (in the open group or component) | |
 | Ctrl+G | | Make Group from the selection | |
 | Ctrl+Shift+G | | Explode the selected groups and components | |
@@ -100,7 +102,7 @@ When the cursor lands on something the tool can use, a coloured point and a tip 
 
 | Colour | Means |
 |---|---|
-| Lime | Endpoint |
+| Lime | Endpoint, or the Origin where the axes meet |
 | Teal | Midpoint |
 | Amber | On Edge |
 | Violet | On Face |
@@ -110,7 +112,7 @@ When the cursor lands on something the tool can use, a coloured point and a tip 
 | Grey | From Point: lined up with a point you hovered earlier (a dotted line runs to it) |
 | Tan | On Guide or Guide Point |
 | Sage | Grid point (on the ground, when nothing nearer wins) |
-| Red / Green / Blue | On the red, green or blue axis direction from the start point |
+| Red / Green / Blue | On the red, green or blue axis direction from the start point, or on the drawn axis itself |
 
 The legend under the view lists the four most common colours.
 
@@ -136,12 +138,43 @@ A circle, an arc or a polygon you draw is **one curve**, not a run of loose segm
 - **Files.** `.shz` keeps curves, rims and their ids. A DXF's `CIRCLE` and `ARC` come in as curves, and the import report counts them ("3 curves came in as curves (2 circles, 1 arc)"). **A SketchUp file's circles, arcs and welded curves come in as curves** too: a circle lying loose, or around a flat face, at the top of the model arrives in a sketch with its face, ready to pull into a cylinder whose ends are rims; a cylinder or a rounded part that is a solid arrives with its circles and arcs as rims, in every copy of a component. The report counts them ("30 curves came in as curves (6 circles, 24 arcs)"). Curves on faces that are not a solid (the amber meshes most hand-made furniture arrives as), a circle drawn on a solid's face, and loose curves inside groups come in as plain edges, and the report counts those too ("481 curves on faces that are not a solid (or on no face) came in as plain edges: a mesh keeps no curves"); a plain SketchUp circle's segments move, erase and offset as edges, and its centre still snaps. A welded curve or a polygon is a curve of straight segments (nothing in the file says it is round), and so is an arc SketchUp cut short or scaled unevenly. If a file's own record of a circle does not match its edges, Sawhorse trusts the edges and says so ("Leg: 1 curve's record did not match its edges; it came in as edges"). What comes across: [skp-compat.md](skp-compat.md#curves).
 - A circle drawn **on a solid's face** imprints (or cuts) plain edges, as before: a curve on a face is not kept yet ([LIMITS.md](LIMITS.md)).
 
+## CNC: drawing a part flat
+
+**Tools > CNC…** opens a drawing board over the whole window, for outlines that are hard to draw in 3D, such as a rocking chair rail or a toy horse's head.
+
+The workspace uses the model's controls: the same tools on the same keys (as you have set them in Edit > Keyboard Shortcuts), the measurements box at the bottom right that you type into without clicking it, Select with Delete, and Cmd+Z, Cmd+A, Cmd+C, Cmd+X, Cmd+V and Shift+Z (Fit). Cmd+Shift+F logs feedback, as it does in the model. A few tools the model does not have take keys of their own: Points (N), Curve (U), Pencil (B) and Image (I).
+
+- **Select (Space):** click a shape, or a point of one. Shift adds, Cmd toggles, and Esc clears. Drag left to right for a window (what is wholly inside) or right to left for a crossing box (what it touches). Delete removes what is selected. Double-click a shape to edit its curves with Points. The panel takes an exact width, height and rotation, and flips and duplicates (Cmd+D).
+- **Erase (E):** click a line to erase it, or drag across several. A closed shape opens where a line goes, and reference lines erase too.
+- **Points (N):** drag a point or a curve handle, or drag a line to bend it. Option on a handle moves one side only. Double-click a point to switch between corner and curve, and double-click a line to add a point. The panel sets a point's kind (Corner, Smooth or Auto), its exact position, and rounds a corner to a radius. Esc goes back to Select.
+- **Line (L):** click to start and click each corner; press and drag for a curve. Type a length and press Enter. Click the start to close. A line ending on the end of another line joins it, as lines do in the model, and pressing the end of an open line carries it on.
+- **Angles, as AutoCAD and Fusion take them:** angles are in degrees counterclockwise from the right, so up is 90 and down and to the right is -30. While a line is being drawn, the **Protractor** shows its angle at the last point, and the angle to the line before. Aiming near a whole step (15° unless you change it beside the Protractor box) locks to it, with a dotted line to show it. Type `10<30` for 10 at 30°, or `<30` to hold the angle and then click or type the length. Or type the length, press Tab, type the angle and press Enter: Tab holds what you typed and moves between the Length and Angle boxes. Esc lets go of a held angle or length. Untick Protractor to draw at any angle.
+- **Tape (T):** works in one of two modes, shown beside the measurements box. Click either one, or tap Cmd to switch; the Tape remembers the last one you used.
+  - **Reference line** (to start): click a straight line or an axis, then click where the parallel line goes or type the distance. Click two points for a line through both. Click one point and type an angle, such as `<30`, for a line through it at that angle. Click a line, press Tab and type an angle for a line at that angle to it, through where you clicked.
+  - **Measure only:** adds nothing. Click two points for the distance between them, with how far across and how far up. Click a line and then a point for the distance square to the line.
+  - Option-click does the other mode's thing for that one click. Points snap to reference lines and where they cross. The lines are saved with the drawing and never cut.
+- **Snap to the grid:** every tool's points land on the grid. A point under the cursor still wins, and lining up with another point only wins when it is nearer than the grid line.
+- **Arc (A):** click both ends, then the bulge. Type the bulge, or `12r` for a radius.
+- **Rect (R) and Circle (C):** click, move and click, or drag. Type `24,12` for a rectangle or a radius for a circle.
+- **Curve (U):** click points and a smooth curve runs through them, shown as you move. Double-click or Option-click for a corner. The quickest way to trace a profile.
+- **Pencil (B):** draw freehand. The stroke becomes a few editable curves, with sharp turns kept as corners. End where you started to close the shape.
+- **Move (M), Rotate (Q), Scale (S) and Offset (F)** work as in the model: Move and Rotate act on what is selected, or pick up the shape you click; a tap of Cmd copies, and after a copy `x3` makes an array and `/3` divides it. Arrow keys lock Move across or up. Scale drags a grip of the selection (Shift keeps the proportions, Cmd scales about the centre) and takes `2`, `2,1` or a size such as `24in`. Offset adds a parallel shape inside or outside the one you click, with sharp corners kept sharp. A typed value right after a move, turn, scale or offset changes it.
+- **Arrow keys** nudge what is selected when nothing is moving, ten times as far with Shift.
+- **Holes:** a closed shape inside an outline cuts through it. A shape inside a hole is a separate part.
+- **Mirror:** draw one half with both ends on the center line and the other half follows. A closed shape to one side gets a twin, and one drawn across the line stays one.
+- **Reference image:** add a PNG or JPEG, then **Set Scale**: click two points you know the distance between and type it. The Image tool (I) moves the picture.
+- Swipe to pan, pinch or Cmd+swipe to zoom, and a mouse wheel zooms. Right-drag or middle-drag pans. Cmd+Z undoes within the drawing.
+
+Set the **Thickness** in any form you would type in the model, choose **Lying flat** or **Standing up**, and press **Bring In**. The part follows the cursor until you click where it goes, and Esc leaves it at the origin. If Bring In is greyed out, the Part section lists what to fix, and clicking a message selects the shape.
+
+Close and Bring In both save the drawing with the model. Reopen it from the drawing list to change it and bring in another part. The earlier part is not updated.
+
 ## Drawing on solids
 
 A shape drawn on a solid's face becomes part of that face:
 - A closed loop inside the face imprints a new face that you can push or pull.
 - A line, an arc or a rectangle that crosses the face from edge to edge splits the face in two.
-- A line that stops inside the face waits as a preview until it reaches an edge.
+- A line that stops inside the face waits as a preview until it reaches an edge. Press Esc or pick another tool and it stays as a line on the face's plane, without splitting the face.
 
 A shape that reaches past the solid (for example, a top board drawn from one side's corner to the other's) becomes a new sketch on that plane.
 

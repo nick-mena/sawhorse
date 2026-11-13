@@ -87,6 +87,25 @@ pub enum Op {
         region: u64,
         distance: f64,
     },
+    /// A new solid straight from a closed outline and its holes (the CNC workspace,
+    /// ADR-0014), lifted `distance` along `normal`. No sketch is involved, so nothing already
+    /// on that plane is touched. The first ring is the outline. `name` is the drawing's, given
+    /// here so the part and its name are one step; left out, logs written before it read the same.
+    ExtrudeProfile {
+        origin: [f64; 3],
+        normal: [f64; 3],
+        rings: Vec<crate::profile::ProfileRing>,
+        distance: f64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+    },
+    /// Keep a CNC drawing with the model, or (`None`) drop it. The kernel stores its JSON
+    /// and does not read it (ADR-0014).
+    SetCncDrawing {
+        id: u64,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        json: Option<String>,
+    },
     /// Push/pull face `face` (persistent face id) of object `object` along its outward
     /// normal.
     PushPull {
@@ -1070,6 +1089,10 @@ pub enum OpOutcome {
     TextureAdded {
         path: String,
     },
+    /// A CNC drawing was stored or dropped.
+    CncDrawingSet {
+        id: u64,
+    },
     /// The style or the shadows changed.
     StyleSet,
     Renamed,
@@ -1156,6 +1179,8 @@ pub struct Model {
     pub(crate) materials: BTreeMap<String, Material>,
     /// Texture images by path (`assets/...`), lane 10.
     pub(crate) textures: BTreeMap<String, crate::looks::TextureImage>,
+    /// CNC drawings by id, as JSON (ADR-0014).
+    pub(crate) cnc_drawings: BTreeMap<u64, String>,
     /// The drawing style (`None`: the default) and the sun and shadows (`None`: off).
     pub(crate) style: Option<crate::looks::Style>,
     pub(crate) shadows: Option<crate::looks::Shadows>,
@@ -1488,6 +1513,11 @@ pub struct ModelStats {
 }
 
 impl Model {
+    /// The CNC drawings this model keeps, by id, as JSON (ADR-0014).
+    pub fn cnc_drawings(&self) -> &BTreeMap<u64, String> {
+        &self.cnc_drawings
+    }
+
     pub fn new() -> Model {
         Model::default()
     }
@@ -1841,6 +1871,52 @@ impl Model {
                 Ok(OpOutcome::ObjectCreated {
                     object: to_public(id),
                 })
+            }
+            Op::ExtrudeProfile {
+                origin,
+                normal,
+                rings,
+                distance,
+                name,
+            } => {
+                // Checked before anything is made, so a refused name leaves the model as it was.
+                if let Some(n) = name {
+                    check_name(n)?;
+                }
+                let mut obj = crate::profile::extrude_profile(origin, normal, rings, *distance)?;
+                obj.member.parent = self.context;
+                obj.name = name.as_ref().map(|n| n.trim().to_string());
+                let id = self.insert_object(obj);
+                self.mark(self.context);
+                Ok(OpOutcome::ObjectCreated {
+                    object: to_public(id),
+                })
+            }
+            Op::SetCncDrawing { id, json } => {
+                match json {
+                    Some(j) => {
+                        let replacing = self.cnc_drawings.contains_key(id);
+                        crate::profile::check_drawing(
+                            *id,
+                            j,
+                            self.cnc_drawings
+                                .iter()
+                                .filter(|(k, _)| *k != id)
+                                .map(|(_, v)| v.len()),
+                            self.cnc_drawings.len() - usize::from(replacing),
+                        )?;
+                        self.cnc_drawings.insert(*id, j.clone());
+                    }
+                    None => {
+                        if self.cnc_drawings.remove(id).is_none() {
+                            return Err(SketchError::BadProfile(
+                                "That drawing is not in this model.",
+                            )
+                            .into());
+                        }
+                    }
+                }
+                Ok(OpOutcome::CncDrawingSet { id: *id })
             }
             Op::PushPull {
                 object,

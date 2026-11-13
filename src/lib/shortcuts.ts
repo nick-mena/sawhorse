@@ -8,7 +8,7 @@ import { startsValueEntry, TOOLS, toolById, type BuiltinToolId, type ToolDef } f
 
 const STORAGE_KEY = "sawhorse.shortcuts";
 
-export type CommandId = "open" | "save" | "saveAs" | "import" | "undo" | "redo" | "selectAll" | "group" | "explode" | "zoomExtents" | "feedback";
+export type CommandId = "open" | "save" | "saveAs" | "import" | "undo" | "redo" | "selectAll" | "cut" | "copy" | "paste" | "group" | "explode" | "zoomExtents" | "feedback";
 export type ActionId = BuiltinToolId | CommandId;
 export type ShortcutGroup = "Tools" | "File" | "Edit" | "View" | "Help";
 
@@ -34,6 +34,9 @@ export const SHORTCUT_ACTIONS: ShortcutAction[] = [
   { id: "import", label: "Import", group: "File", kind: "chord", defaults: ["Ctrl+I"] },
   { id: "undo", label: "Undo", group: "Edit", kind: "chord", defaults: ["Ctrl+Z"] },
   { id: "redo", label: "Redo", group: "Edit", kind: "chord", defaults: ["Ctrl+Y", "Ctrl+Shift+Z"] },
+  { id: "cut", label: "Cut", group: "Edit", kind: "chord", defaults: ["Ctrl+X"] },
+  { id: "copy", label: "Copy", group: "Edit", kind: "chord", defaults: ["Ctrl+C"] },
+  { id: "paste", label: "Paste", group: "Edit", kind: "chord", defaults: ["Ctrl+V"] },
   { id: "selectAll", label: "Select All", group: "Edit", kind: "chord", defaults: ["Ctrl+A"] },
   { id: "group", label: "Make Group", group: "Edit", kind: "chord", defaults: ["Ctrl+G"] },
   { id: "explode", label: "Explode", group: "Edit", kind: "chord", defaults: ["Ctrl+Shift+G"] },
@@ -70,12 +73,12 @@ export function shortcutProblem(id: ActionId, combo: string): string | null {
   const letter = /^[A-Z]$/.test(key);
   const digit = /^[0-9]$/.test(key);
   if (!letter && !digit && !/^F([1-9]|1[0-2])$/.test(key) && key !== "Space") {
-    return key.length === 1 ? "Use a letter, a number with Ctrl, or a function key." : `${key} has a fixed job in Sawhorse and can't be reassigned.`;
+    return key.length === 1 ? "Use a letter, a number with Ctrl, or a function key." : `${key} has a fixed job in BenchCraft and can't be reassigned.`;
   }
   if (action.kind === "chord") {
     if (!ctrl) return `${action.label} needs Ctrl, so that it still works while a panel has focus.`;
     if (key === "Space") return "Ctrl+Space belongs to the system. Try another key.";
-    if (RESERVED_CHORDS.has(combo)) return `${combo} already belongs to the system or to text editing. Try another key.`;
+    if (RESERVED_CHORDS.has(combo) && !defaultsOf(action).includes(combo)) return `${combo} already belongs to the system or to text editing. Try another key.`;
     return null;
   }
   if (ctrl) return `${action.label} uses a single key, with or without Shift.`;

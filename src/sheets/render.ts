@@ -388,7 +388,7 @@ export function sheetSvg(r: SheetRender, href: Href, units: "inches" | "millimet
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${size(w)}" height="${size(h)}" viewBox="0 0 ${num(w * k)} ${num(h * k)}">
 <title>${escapeXml(r.name)}</title>
-<desc>Sawhorse drawing sheet. User units: ${units === "inches" ? "points (1/72 in)" : "millimetres"} of paper.</desc>
+<desc>BenchCraft drawing sheet. User units: ${units === "inches" ? "points (1/72 in)" : "millimetres"} of paper.</desc>
 <rect x="0" y="0" width="${num(w * k)}" height="${num(h * k)}" fill="#ffffff"/>
 ${primsSvg(r.prims, href, k)}
 </svg>

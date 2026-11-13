@@ -4,6 +4,46 @@ All notable changes to Sawhorse are recorded here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added (macOS fork, 2026-11-10)
+
+- **CNC (Tools > CNC…): draw a part flat, with curves, and bring it into the model.** The workspace has a pen with curve handles, point editing, rectangles and circles, holes, mirror drawing about a center line, and a reference image you can scale to real size. Set the stock thickness, choose whether the part lies flat or stands up, and Bring In: it follows the cursor until you click where it goes, and its curved walls are smooth. The drawing is saved with the model, so you can reopen it and bring in another part. Bringing in again makes a new part and leaves the earlier one alone. Limits are in docs/LIMITS.md.
+
+- **More drawing tools in CNC, working the way Illustrator and Inkscape do.** Select and Node are now separate tools. Drag a line to bend it. A Curve tool runs a smooth curve through your clicks, and a Pencil turns a freehand stroke into editable curves. Points can be Corner, Smooth or Auto, corners can be rounded to a radius, and selected shapes can be resized by their box, rotated, flipped and duplicated. Smart guides line points up as you draw, and arrow keys nudge.
+
+- **CNC uses the model's controls.** The same tools sit on the same keys, following any you have changed: Select (Space), Erase, Line, Arc, Rect, Circle, Move, Rotate, Scale, Offset and Tape. Select works as it does in the model, with window and crossing boxes, Shift to add, Cmd to toggle and Delete. Move and Rotate copy on a tap of Cmd and make arrays with `x3` and `/3`. The measurements box takes typed lengths, sizes, angles and factors without clicking it. Copy, Cut, Paste, Select All and Fit (Shift+Z) work on the drawing, and lines that meet end to end join. Shapes are now moved with Move and resized with Scale, as in the model, rather than by dragging with Select.
+- **A Tape tool in CNC.** Pull reference lines off any straight line or axis, at a distance you click or type, and measure between points. Points snap to reference lines and where they cross. They are saved with the drawing and never cut.
+- **The CNC Tape has two modes: Reference line and Measure only.** Reference line, the default, adds a line with every use: parallel to a line, through two points, or at an angle. Measure only never adds anything; it measures between two points, or square to a line. Switch with the control beside the measurements box or a tap of Cmd, as SketchUp's Tape does. Option-click does the other mode's thing once. Log Feedback (Cmd+Shift+F) now works inside the CNC workspace too, and the entry says you were in CNC.
+- **A protractor and typed angles in CNC, as in AutoCAD and Fusion.** While drawing a line, the protractor shows its angle and the angle to the line before, and aims near a 15° step lock to it (the step can be changed, and the protractor turned off). Type `10<30` for a length at an angle, `<30` to hold an angle, or a length, Tab and an angle: Tab moves between the Length and Angle boxes and holds what is typed. The Tape puts a reference line through a point at a typed angle, or at an angle to a line.
+- **CNC snapping is more dependable.** With Snap to the grid on, every tool's points land on the grid, arc ends included. A point under the cursor still wins, even off the grid, and lining up with another point only wins when it is nearer than the grid line. Shift keeps its direction exactly on the grid. Move and Rotate can pick a shape up by its own corner, so that corner is what lands on the grid, and in the Points tool the point you drag is the one that snaps. Tool keys work right after ticking a checkbox in the panel.
+
+### Changed (macOS fork, 2026-11-12)
+
+- **The app is now called BenchCraft, with a new icon.** The window, menus, file pickers, exported PDFs and drawings say BenchCraft. Documents are still `.shz`, and settings, the feedback log and saved styles carry over (the bundle identifier is unchanged). The top bar shows a beagle mark beside the name, set in Fraunces semibold (bundled, OFL).
+
+### Fixed (CNC testing, macOS fork, 2026-11-11)
+
+- **Tool keys keep working in CNC after a panel field.** Rounding a corner, pressing Enter in a size box or clicking a panel button used to leave the keys going nowhere (or to the model behind) until you clicked a tool.
+- **The CNC drawing no longer shifts when the hint at the bottom wraps to a second line.** The Tape's second point used to land a few pixels off the cursor, so a level reference line could come out at an angle.
+- **A new CNC tool starts with its own hint**, not the last tool's message ("Rotate. Offset 1/2."), and refusals read "Can't do that." once.
+- **Bring In names the part after the drawing**, so a part drawn as "Rocker" is "Rocker" in the Outliner and the cut list, in the same undo step.
+- **A tap of Cmd is a tap.** Holding it for more than half a second and letting go no longer switches the Tape's mode or makes Move copy.
+- **A length held with Tab shows in its box when Tab comes back to it**, selected so typing replaces it.
+- **A feedback note closed with Esc comes back selected.** Typing starts a new note instead of adding to the end of the old one.
+
+### Added (feedback log, macOS fork, 2026-11-09)
+
+- **A tap of Cmd (Ctrl elsewhere) in Push/Pull pulls out a new face** instead of moving the one you grabbed, and leaves a seam where it was. It works before the press or during the push, and lasts for one pull. The status line and the rail's hint mention it, and the preview turns green and shows + while it is on. Holding the key as you let go still works.
+- **The red, green and blue axes snap along their length**, and where edges and guides cross them, as if they were guides that are always there.
+- **The origin is a snap point**, at any zoom, in every tool. Its tip says Origin. A corner that sits on the origin still snaps as a corner, and an origin hidden behind a solid does not snap.
+- **Copy, Cut and Paste** for solids, groups, components and sketch shapes, in the Edit menu and on Cmd+C, Cmd+X and Cmd+V (Ctrl elsewhere). What you paste follows the cursor until you click where it goes, Esc cancels, and each paste is one undo step. With a face or edge selected, its whole solid is copied. Cut leaves the part in place until you paste it, then moves it there. The clipboard lasts until you open or start another document.
+
+### Fixed (feedback log, macOS fork, 2026-11-09)
+
+- **Lines, arcs, circles and rectangles can be drawn in level views, such as Right and Front.** With nothing to land on, the preview did not appear and the click was silently ignored. They now go on an upright plane facing you, through where you started, or through the origin for the first click. The same goes for a cursor above the horizon in perspective.
+- **A line stopped partway across a face is kept.** Esc or another tool used to throw it away. It now stays as a line on the face's plane, in one undo step, though it does not split the face until it runs from edge to edge.
+- **Deleted guides no longer leave invisible snaps behind.** The points the cursor had rested on outlived the guide or shape they came from, so hovering nearby still found them. After an edit, only what is still there is remembered.
+- **A shortcut held with Cmd no longer counts as a tap of Cmd.** Pressing Cmd+C or Cmd+Tab in Move turned on copying without you asking, and the next move left a copy behind. Rotate, Scale, Tape and Section options now answer only to a tap, which takes effect when the key comes up. Holding Cmd as you let go of the mouse no longer counts as a tap either, so it applies to that one gesture and does not carry over to the next.
+
 ### Fixed (feedback log, macOS fork, 2026-11-08)
 
 - **Deleting a round solid no longer leaves its outline on screen.** The outline had nothing behind it, so nothing could select it.

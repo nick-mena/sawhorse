@@ -132,7 +132,7 @@ fn menu_asking_before_quit<R: tauri::Runtime>(
             if p.text()?.starts_with("Quit") {
                 sub.remove(&item)?;
                 let quit =
-                    MenuItem::with_id(app, QUIT_ITEM, "Quit Sawhorse", true, Some("CmdOrCtrl+Q"))?;
+                    MenuItem::with_id(app, QUIT_ITEM, "Quit BenchCraft", true, Some("CmdOrCtrl+Q"))?;
                 sub.insert(&quit, at)?;
                 return Ok(menu);
             }
@@ -179,5 +179,5 @@ pub fn run() {
             save_file_atomic
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Sawhorse");
+        .expect("error while running BenchCraft");
 }

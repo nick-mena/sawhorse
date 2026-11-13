@@ -84,7 +84,7 @@ test("a circle is one curve: select, move, scale, copy, split, erase, explode; a
 
   // 1. A circle of 300 mm at the origin, its first point along red.
   await page.keyboard.press("c");
-  await clickAt(page, [0, 0, 0], /grid|endpoint|axis/);
+  await clickAt(page, [0, 0, 0], /grid|endpoint|origin|axis/);
   await point(page, [20, 0, 0]);
   await type(page, "300");
   await expect(hint).toContainText("Circle r 300 mm, 24 segments");
@@ -348,7 +348,7 @@ test("lane 23b: the Eraser across a circle or a polygon, two circles moved, a pu
   // 1. A circle of 300 mm, then an Eraser drag from outside it, across it, to outside it:
   // the circle and its face go, one undo step (it used to say "no curve that one there").
   await page.keyboard.press("c");
-  await clickAt(page, [0, 0, 0], /grid|endpoint|axis/);
+  await clickAt(page, [0, 0, 0], /grid|endpoint|origin|axis/);
   await point(page, [20, 0, 0]);
   await type(page, "300");
   await expect(hint).toContainText("Circle r 300 mm, 24 segments");
@@ -370,7 +370,7 @@ test("lane 23b: the Eraser across a circle or a polygon, two circles moved, a pu
   await page.keyboard.press("c");
   await page.keyboard.press("c");
   await expect(hint).toContainText("Polygon (6 sides)");
-  await clickAt(page, [0, 0, 0], /grid|endpoint|axis/);
+  await clickAt(page, [0, 0, 0], /grid|endpoint|origin|axis/);
   await point(page, [10, 0, 0]);
   await type(page, "200");
   await expect(hint).toContainText("Polygon r 200 mm, 6 sides");
@@ -392,7 +392,7 @@ test("lane 23b: the Eraser across a circle or a polygon, two circles moved, a pu
   // At the origin and 1 m along red (the metric grid's points).
   for (const cx of [0, 1 / IN]) {
     await circleTool(page);
-    await clickAt(page, [cx, 0, 0], /grid|endpoint|axis|from-point/);
+    await clickAt(page, [cx, 0, 0], /grid|endpoint|origin|axis|from-point/);
     await point(page, [cx + 10, 0, 0]);
     await type(page, "200");
     await expect(hint).toContainText("Circle r 200 mm, 24 segments");
@@ -423,7 +423,7 @@ test("lane 23b: the Eraser across a circle or a polygon, two circles moved, a pu
   await expect.poll(async () => (await curves(page)).length).toBe(0);
   await millimetres(page);
   await circleTool(page);
-  await clickAt(page, [0, 0, 0], /grid|endpoint|axis|from-point/);
+  await clickAt(page, [0, 0, 0], /grid|endpoint|origin|axis|from-point/);
   await point(page, [20, 0, 0]);
   await type(page, "300");
   await expect(hint).toContainText("Circle r 300 mm, 24 segments");

@@ -15,6 +15,7 @@
   /* Lane 7 (ours): grain arrows, walnut brown; across-the-width grain a warmer copper. */
   --grain:#8a5a2b; --grain-across:#c0602a;
   --display:"Open Sans","Segoe UI",Tahoma,sans-serif;
+  --brand:"Fraunces",Georgia,serif;
   --body:"Open Sans","Segoe UI",Tahoma,system-ui,sans-serif;
   --mono:"Noto Sans Mono","Cascadia Mono",Consolas,monospace;
   /* Type roles, in rem so a larger system text size carries through. One open humanist family carries

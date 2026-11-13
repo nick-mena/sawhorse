@@ -210,7 +210,7 @@ export class PdfDoc {
     }
     objects[catalog - 1] = `<< /Type /Catalog /Pages ${pagesObj} 0 R >>`;
     objects[pagesObj - 1] = `<< /Type /Pages /Kids [${kids.map((k) => `${k} 0 R`).join(" ")}] /Count ${kids.length} >>`;
-    const infoObj = add(`<< /Title ${pdfString(this.info.title ?? "Cut list")} /Creator ${pdfString(this.info.creator ?? "Sawhorse")} /Producer ${pdfString("Sawhorse")} >>`);
+    const infoObj = add(`<< /Title ${pdfString(this.info.title ?? "Cut list")} /Creator ${pdfString(this.info.creator ?? "BenchCraft")} /Producer ${pdfString("BenchCraft")} >>`);
     let out = "%PDF-1.4\n%âãÏÓ\n";
     const offsets: number[] = [];
     objects.forEach((body, i) => {

@@ -87,7 +87,7 @@ describe("Styles pane, the ground grid (lane 21, issue #4)", () => {
     rerender(<StylesPane {...p} style={{ grid: false }} />);
     expect((screen.getByLabelText("Ground grid") as HTMLInputElement).checked).toBe(false);
     // Hiding the grid is not a look: the default preset still reads as chosen.
-    expect(screen.getByRole("button", { name: /Sawhorse/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: /BenchCraft/ }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByLabelText("Ground grid"));
     expect(onGrid).toHaveBeenLastCalledWith(true);
   });

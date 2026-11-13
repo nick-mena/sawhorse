@@ -44,7 +44,7 @@ test("no render service, or one not answering: no chip, no Render pane, Settings
   // Cleared: off, nothing asked.
   await page.getByRole("button", { name: "Clear" }).click();
   await expect(line).toHaveAttribute("data-status", "off");
-  await expect(line).toHaveText("Renders are off: no render service is set. Sawhorse needs none to model, list or nest.");
+  await expect(line).toHaveText("Renders are off: no render service is set. BenchCraft needs none to model, list or nest.");
   await expect(page.getByRole("tab", { name: "Render" })).toHaveCount(0);
 });
 
@@ -64,7 +64,7 @@ test("a catch-all server answering 200 with HTML is not the render service: no c
   await page.getByRole("menuitem", { name: /Settings/ }).click();
   const line = page.getByTestId("render-gate");
   await expect(line).toHaveAttribute("data-status", "not_render");
-  await expect(line).toHaveText(`Renders are off: ${SERVICE} answered, but not as a Sawhorse render service (its /healthz did not name the service). Check the address.`);
+  await expect(line).toHaveText(`Renders are off: ${SERVICE} answered, but not as a BenchCraft render service (its /healthz did not name the service). Check the address.`);
   await expect(page.locator("header.top .chip")).toHaveCount(0);
   await expect(page.getByRole("tab", { name: "Render" })).toHaveCount(0);
   expect(asked, "only the health check was asked").toEqual(["/healthz"]);

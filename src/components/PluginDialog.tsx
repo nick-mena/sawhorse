@@ -52,7 +52,7 @@ export function PluginDialog({ state, onClose }: { state: PluginDialogState; onC
         {state.description ? <p className="plugin-desc">{state.description}</p> : null}
         {state.replaces ? (
           <p className="plugin-asks" data-replaces="">
-            It has the same id as the bundled sample <b>{state.replaces}</b> and takes its place. It is not the copy that came with Sawhorse.
+            It has the same id as the bundled sample <b>{state.replaces}</b> and takes its place. It is not the copy that came with BenchCraft.
           </p>
         ) : null}
         {state.lines.length ? (
@@ -93,7 +93,7 @@ export function PluginDialog({ state, onClose }: { state: PluginDialogState; onC
           <b>Save a file from {r.plugin}?</b>
         </header>
         <p className="plugin-desc">
-          <b>{r.plugin}</b> wants to save <b data-file="">{r.name}</b> ({formatBytes(r.bytes)}) to your downloads folder. This browser has no save dialog, so Sawhorse asks first.
+          <b>{r.plugin}</b> wants to save <b data-file="">{r.name}</b> ({formatBytes(r.bytes)}) to your downloads folder. This browser has no save dialog, so BenchCraft asks first.
         </p>
         <div className="btnrow">
           <button type="button" className="btn primary" autoFocus onClick={() => finish(true)}>

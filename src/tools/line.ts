@@ -6,7 +6,8 @@
 // Planes: a line started inside a face stays on that face's plane; otherwise the plane is
 // settled by the first segment (level, or the upright plane containing it). On a solid's
 // face a line must cut it from edge to edge (or close into a loop): until it does, the
-// stroke stays a preview, then becomes a split_face cut (lane-2 open question 1: yes).
+// stroke stays a preview, then becomes a split_face cut (lane-2 open question 1: yes). Esc
+// or another tool ends it there, and what was clicked stays as a line on the face's plane.
 import type { EditResult } from "../kernel/client";
 import type { V3 } from "../kernel/types";
 import { notHere, parseVcb } from "../lib/vcb";
@@ -24,7 +25,6 @@ export class LineTool extends StrokeTool {
   private first: V3 | null = null;
   /** A face stroke waiting to reach an edge or close (not in the model yet). */
   private pending = false;
-  private viewDir: V3 = [0, 0, -1];
 
   start(): V3 | null {
     return this.chain.length ? this.chain[this.chain.length - 1] : null;
@@ -50,10 +50,28 @@ export class LineTool extends StrokeTool {
     return ctx;
   }
 
+  cancel(): boolean {
+    this.keepPending();
+    return super.cancel();
+  }
+
+  deactivate(): void {
+    this.keepPending();
+    super.deactivate();
+  }
+
+  /** Every other line stays where it was clicked, so a stroke cut short on a face does too. It
+   * cannot cut the face yet, so it goes on the face's plane as a sketch line. */
+  private keepPending(): void {
+    const f = this.plane?.frame;
+    if (!this.pending || !f || this.chain.length < 2) return;
+    this.pending = false;
+    void this.stroke({ on: "plane", origin: f.origin, normal: f.normal }, this.chain, false, () => "Kept the line on the face's plane. It will not split the face until it runs from edge to edge.");
+  }
+
   onEvent(e: ToolEvent): void {
     if (e.type === "move" || e.type === "drag") {
       this.track(e);
-      this.viewDir = e.ray.dir;
       const s = this.start();
       if (s && this.cursor) this.host.showValue(this.host.fmt(dist(s, this.cursor)));
       this.host.changed();
@@ -136,7 +154,7 @@ export class LineTool extends StrokeTool {
     // A dangling stroke is not an error yet, just not finished; anything else is.
     if ((h.lastError() ?? "").includes("must start and end on its edges")) {
       this.pending = true;
-      h.status("Line on a face: carry on to an edge of the face, or close the loop. Esc drops it.", false);
+      h.status("Line on a face: carry on to an edge of the face, or close the loop, to split it. Esc stops here and keeps the line.", false);
     } else {
       this.chain.pop();
       this.snaps.pop();

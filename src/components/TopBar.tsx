@@ -119,9 +119,9 @@ export function TopBar({ view, onView, credits, showCredits = true, creditsState
 
   return (
     <header className="top">
-      <div className="brand" title="Sawhorse">
+      <div className="brand" title="BenchCraft">
         <BrandMark />
-        Sawhorse
+        BenchCraft
       </div>
       <nav className="menu" aria-label="Menu" ref={navRef}>
         {MENUS.map((m) => {

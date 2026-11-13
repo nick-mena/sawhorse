@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Sawhorse",
+  "productName": "BenchCraft",
   "version": "0.1.0-alpha.4",
   "identifier": "app.sawhorse.desktop",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Sawhorse",
+        "title": "BenchCraft",
         "width": 1440,
         "height": 900,
         "minWidth": 900,
@@ -30,7 +30,7 @@
     "targets": "all",
     "category": "GraphicsAndDesign",
     "shortDescription": "Free push/pull 3D modeling for woodworkers and makers",
-    "longDescription": "Sawhorse is a free, local-first, open-source push/pull 3D modeler for woodworkers and makers, with a built-in cut list and watertight exports.",
+    "longDescription": "BenchCraft is a free, local-first, open-source push/pull 3D modeler for woodworkers and makers, with a built-in cut list and watertight exports.",
     "copyright": "Copyright (c) 2026 Sawhorse contributors. MIT OR Apache-2.0.",
     "license": "MIT OR Apache-2.0",
     "icon": [

@@ -92,7 +92,7 @@ describe("the status line on an empty document", () => {
   it("names the units and is the click that changes them", () => {
     const { onUnits } = bar({ empty: true });
     const line = document.getElementById("hint")!;
-    expect(line.textContent).toBe("Push. Click a face and move. Type 3/4 for 3/4 in. Double-click repeats the last distance.Units: fractional inches. Click to change.");
+    expect(line.textContent).toBe("Push. Click a face and move. Tap Ctrl for a new face. Type 3/4 for 3/4 in. Double-click repeats.Units: fractional inches. Click to change.");
     const link = screen.getByTestId("hint-units");
     expect(link.tagName).toBe("BUTTON");
     expect(link.textContent).toBe("Units: fractional inches. Click to change.");

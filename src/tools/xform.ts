@@ -452,7 +452,7 @@ export interface SketchPreview {
   liftable: boolean;
 }
 
-const meshNear = (p: V3, q: V3) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) <= 2e-6 + 4e-7 * Math.max(Math.abs(q[0]), Math.abs(q[1]), Math.abs(q[2]));
+export const meshNear = (p: V3, q: V3) => Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]) <= 2e-6 + 4e-7 * Math.max(Math.abs(q[0]), Math.abs(q[1]), Math.abs(q[2]));
 
 export function sketchPreviews(s: Subject, mesh: MeshData | null): SketchPreview[] {
   return (s.sketches ?? []).map((part) => {

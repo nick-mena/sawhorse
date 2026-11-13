@@ -80,3 +80,92 @@ describe("Push/Pull feel", () => {
     expect(h.statuses.at(-1)?.text).toMatch(/follow a copy/);
   });
 });
+
+describe("Push/Pull: a tap of Ctrl pulls out a new face", () => {
+  const start = (t: PushTool) => {
+    t.onEvent(ev("down", [0.5, 0.5, 1], { picked: onTop }));
+    t.onEvent(ev("click", [0.5, 0.5, 1], { picked: onTop }));
+    t.onEvent(at(1.25));
+  };
+  const finish = (t: PushTool) => {
+    t.onEvent(ev("down", [0.5, 0.5, 1.25], { picked: onTop }));
+    t.onEvent(ev("click", [0.5, 0.5, 1.25], { picked: onTop, snapKind: "axis-z" }));
+  };
+
+  it("offers the tap as soon as a push starts, and says when it is on", () => {
+    const h = fakeHost();
+    const t = new PushTool(h);
+    t.onEvent(ev("down", [0.5, 0.5, 1], { picked: onTop }));
+    expect(h.statuses.at(-1)?.text).toMatch(/Tap Ctrl/);
+    t.onModifier("ctrl");
+    expect(h.statuses.at(-1)?.text).toMatch(/new face/i);
+    expect(h.statuses.at(-1)?.text).toMatch(/Tap Ctrl again/);
+  });
+
+  it("tapped mid-push: the pull makes a new face, and the preview says so", async () => {
+    const h = fakeHost();
+    const t = new PushTool(h);
+    start(t);
+    t.onModifier("ctrl");
+    t.onEvent(at(1.25));
+    expect(t.view().labels[0].text).toMatch(/\+$/);
+    finish(t);
+    await tick();
+    expect(last(h)).toMatchObject({ op: "push_pull_new_face", object: 1, face: 2 });
+  });
+
+  it("tapped before the press works too, and only for the next pull", async () => {
+    const h = fakeHost();
+    const t = new PushTool(h);
+    t.onModifier("ctrl");
+    start(t);
+    finish(t);
+    await tick();
+    expect(last(h).op).toBe("push_pull_new_face");
+    start(t);
+    finish(t);
+    await tick();
+    expect(last(h).op).toBe("push_pull");
+  });
+
+  it("a second tap goes back to moving the face", async () => {
+    const h = fakeHost();
+    const t = new PushTool(h);
+    start(t);
+    t.onModifier("ctrl");
+    t.onModifier("ctrl");
+    finish(t);
+    await tick();
+    expect(last(h).op).toBe("push_pull");
+  });
+
+  it("applies to a typed distance, in a gesture or after one", async () => {
+    const h = fakeHost();
+    const t = new PushTool(h);
+    start(t);
+    t.onModifier("ctrl");
+    t.onValue("2");
+    await tick();
+    expect(last(h).op).toBe("push_pull_new_face");
+    h._target = { kind: "face", object: 1, face: 2 };
+    t.onModifier("ctrl");
+    t.onValue("2");
+    await tick();
+    expect(last(h).op).toBe("push_pull_new_face");
+    t.onValue("2");
+    await tick();
+    expect(last(h).op).toBe("push_pull");
+  });
+
+  it("Esc forgets the tap", async () => {
+    const h = fakeHost();
+    const t = new PushTool(h);
+    start(t);
+    t.onModifier("ctrl");
+    t.cancel();
+    start(t);
+    finish(t);
+    await tick();
+    expect(last(h).op).toBe("push_pull");
+  });
+});

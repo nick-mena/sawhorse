@@ -108,14 +108,27 @@ export function planeFromSnap(snap: Snap, prefer: "auto" | "z" | "x" | "y" = "au
   return horizontalAt(p);
 }
 
+/** Looking level (Right, Front...): a level plane is only a line on screen, so nothing can
+ * be drawn on it. The inference engine's LEVEL_VIEW is the same figure. */
+export function viewIsLevel(view: V3): boolean {
+  return Math.abs(unit(view)[2]) < 0.01;
+}
+
+/** The normal of an upright plane turned toward the eye. */
+export function facingNormal(view: V3): V3 {
+  const n = unit([view[0], view[1], 0]);
+  return [0 - n[0], 0 - n[1], 0];
+}
+
 /**
- * The plane of a line segment that did not start on a surface: horizontal when level, else
- * the vertical plane containing it (a plumb segment takes the vertical plane facing the
- * camera, `facing` being the view direction).
+ * The plane of a line segment that did not start on a surface: horizontal when level (unless
+ * the view is level too, when that plane could not be drawn on), else the vertical plane
+ * containing it (a plumb segment takes the vertical plane facing the camera, `facing` being
+ * the view direction).
  */
 export function planeForSegment(a: V3, b: V3, facing: V3): DrawPlane {
   const d = sub(b, a);
-  if (Math.abs(d[2]) <= 1e-9 * Math.max(1, len(d))) return horizontalAt(a);
+  if (Math.abs(d[2]) <= 1e-9 * Math.max(1, len(d)) && !viewIsLevel(facing)) return horizontalAt(a);
   let n = cross(d, [0, 0, 1]);
   if (len(n) < 1e-9 * len(d)) {
     n = [facing[0], facing[1], 0];

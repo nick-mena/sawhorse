@@ -85,9 +85,9 @@ describe("render gate", () => {
   });
 
   it("says in one line why renders are off or on", () => {
-    expect(gateLine("off", null)).toBe("Renders are off: no render service is set. Sawhorse needs none to model, list or nest.");
+    expect(gateLine("off", null)).toBe("Renders are off: no render service is set. BenchCraft needs none to model, list or nest.");
     expect(gateLine("unreachable", "https://svc.test")).toBe("Renders are off: the render service at https://svc.test did not answer its health check.");
-    expect(gateLine("not_render", "https://svc.test")).toBe("Renders are off: https://svc.test answered, but not as a Sawhorse render service (its /healthz did not name the service). Check the address.");
+    expect(gateLine("not_render", "https://svc.test")).toBe("Renders are off: https://svc.test answered, but not as a BenchCraft render service (its /healthz did not name the service). Check the address.");
     expect(gateLine("ready", "https://svc.test")).toMatch(/^Renders are on/);
     expect(gateLine("checking", "https://svc.test")).toMatch(/^Asking/);
   });

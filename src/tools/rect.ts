@@ -11,7 +11,7 @@ import type { EditResult } from "../kernel/client";
 import type { V3 } from "../kernel/types";
 import { notHere, parseVcb } from "../lib/vcb";
 import { GROUND } from "../lib/edit";
-import { add, dirName, dist, dot, fmtPoint, horizontalAt, local, mul, onPlane, planeAt, planeFromSnap, rectangle, rectSides, rotatedRectangle, rotatedWidth, sub, unit, world, type DrawPlane } from "./draw";
+import { add, dirName, dist, dot, facingNormal, fmtPoint, horizontalAt, local, mul, onPlane, planeAt, planeFromSnap, rectangle, rectSides, rotatedRectangle, rotatedWidth, sub, unit, viewIsLevel, world, type DrawPlane } from "./draw";
 import { StrokeTool, faceNote } from "./stroke";
 import { finalTarget } from "./target";
 import type { Snap, ToolEvent, ToolView } from "./tool";
@@ -67,7 +67,8 @@ export class RectTool extends StrokeTool {
         if (s && onPlane(s.frame, p) && onPlane(s.frame, a)) return { plane: planeFromSnap({ ...start, surface: s, kind: "on-face" }), point: p };
       }
       // A level or upright plane through the corner that holds the cursor's point.
-      for (const n of [[0, 0, 1], [1, 0, 0], [0, 1, 0]] as V3[]) {
+      const level = viewIsLevel(this.viewDir);
+      for (const n of [level ? facingNormal(this.viewDir) : [0, 0, 1], [1, 0, 0], [0, 1, 0]] as V3[]) {
         if (Math.abs(dot(sub(p, a), n)) <= 1e-7 && dist(p, a) > 1e-9) return { plane: n[2] ? horizontalAt(a) : planeAt(a, n), point: p };
       }
     }

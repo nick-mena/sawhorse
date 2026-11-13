@@ -579,3 +579,188 @@ fn an_edge_of_the_face_under_the_cursor_is_not_hidden_by_it_when_seen_obliquely(
     assert_eq!(r.kind, K::OnEdge, "{r:?}");
     assert!(r.point[2].abs() < 1e-12);
 }
+
+#[test]
+fn the_origin_is_a_point_to_snap_to() {
+    // A millimetre a pixel, 5 px away: on the bare ground there is nothing else to find.
+    let bare = model(&[]);
+    let r = run(&bare, &down(0.005, 0.0, 0.001));
+    assert_eq!(r.kind, K::Origin);
+    assert!(close(r.point, [0.0, 0.0, 0.0]));
+    // Past the snap distance it lets go.
+    assert_ne!(run(&bare, &down(0.03, 0.0, 0.001)).kind, K::Origin);
+}
+
+#[test]
+fn a_corner_at_the_origin_stays_a_corner_and_a_covered_origin_does_not_snap() {
+    let at_origin = unit_box();
+    assert_eq!(run(&at_origin, &down(0.0, 0.0, 0.001)).kind, K::Endpoint);
+    let over = boxes(&[(-1.0, -1.0, 2.0, 2.0, 1.0)]);
+    assert_ne!(run(&over, &down(0.0, 0.0, 0.001)).kind, K::Origin);
+}
+
+#[test]
+fn a_drawing_plane_away_from_the_origin_gets_no_ghost_of_it() {
+    let bare = model(&[]);
+    let mut q = down(0.005, 0.0, 0.001);
+    q.plane = Some(PlaneQ {
+        origin: [0.0, 0.0, 1.0],
+        normal: [0.0, 0.0, 1.0],
+    });
+    let r = run(&bare, &q);
+    assert_ne!(r.kind, K::FromPoint);
+    assert_ne!(r.kind, K::Origin);
+}
+
+/// `down` with the ground grid off, so only the axis itself can answer on open ground.
+fn no_grid(x: f64, y: f64) -> InferQuery {
+    let mut q = down(x, y, 0.001);
+    q.grid = false;
+    q
+}
+
+#[test]
+fn the_red_and_green_axes_snap_along_their_length() {
+    let bare = model(&[]);
+    let r = run(&bare, &no_grid(0.5, 0.004));
+    assert_eq!(r.kind, K::OnAxisX);
+    assert!(close(r.point, [0.5, 0.0, 0.0]));
+    let g = run(&bare, &no_grid(-0.004, -0.7));
+    assert_eq!(g.kind, K::OnAxisY);
+    assert!(close(g.point, [0.0, -0.7, 0.0]));
+    // Past the line snap distance it lets go.
+    assert_ne!(run(&bare, &no_grid(0.5, 0.02)).kind, K::OnAxisX);
+}
+
+#[test]
+fn a_whole_grid_step_on_an_axis_is_still_a_grid_point() {
+    let r = run(&model(&[]), &down(20.0 * IN, 0.002, 0.001));
+    assert_eq!(r.kind, K::Grid);
+    assert!(close(r.point, [20.0 * IN, 0.0, 0.0]));
+}
+
+#[test]
+fn drawing_along_an_axis_keeps_the_gestures_own_axis_inference() {
+    let mut q = no_grid(0.5, 0.002);
+    q.start = Some([-1.0, 0.0, 0.0]);
+    assert_eq!(run(&model(&[]), &q).kind, K::AxisX);
+}
+
+#[test]
+fn an_edge_crossing_an_axis_is_an_intersection_and_a_covered_axis_does_not_snap() {
+    let crossed = model(&[rect(0.5, -0.3, 1.0, 1.0)]);
+    let r = run(&crossed, &no_grid(0.5, 0.003));
+    assert_eq!(r.kind, K::Intersection);
+    assert!(close(r.point, [0.5, 0.0, 0.0]));
+    let over = boxes(&[(-1.0, -1.0, 2.0, 2.0, 1.0)]);
+    assert_ne!(run(&over, &no_grid(0.4, 0.002)).kind, K::OnAxisX);
+}
+
+#[test]
+fn a_plane_that_misses_the_axes_gets_no_axis_snap() {
+    let mut q = no_grid(0.5, 0.002);
+    q.plane = Some(PlaneQ {
+        origin: [0.0, 0.0, 1.0],
+        normal: [0.0, 0.0, 1.0],
+    });
+    assert_ne!(run(&model(&[]), &q).kind, K::OnAxisX);
+}
+
+/// Looking along +Y, level, at height `z`, `x` metres right of the origin (a millimetre a pixel).
+fn side(x: f64, z: f64) -> InferQuery {
+    let mut q = no_grid(0.0, 0.0);
+    q.origin = [x, -10.0, z];
+    q.dir = [0.0, 1.0, 0.0];
+    q.px.eye = q.origin;
+    q.px.forward = q.dir;
+    q
+}
+
+#[test]
+fn the_blue_axis_snaps_but_gives_way_to_a_face_behind_it() {
+    let r = run(&model(&[]), &side(0.004, 0.5));
+    assert_eq!(r.kind, K::OnAxisZ);
+    assert!(close(r.point, [0.0, 0.0, 0.5]));
+    // A box standing behind the axis: what is under the cursor is its face.
+    let behind = boxes(&[(-1.0, 2.0, 2.0, 2.0, 1.0)]);
+    assert_ne!(run(&behind, &side(0.004, 0.5)).kind, K::OnAxisZ);
+}
+
+/// Looking level along -x from (10, y, z), parallel projection: the Right view.
+fn from_the_right(y: f64, z: f64, mpp: f64) -> InferQuery {
+    let mut q = down(0.0, 0.0, mpp);
+    q.origin = [10.0, y, z];
+    q.dir = [-1.0, 0.0, 0.0];
+    q.px.eye = q.origin;
+    q.px.forward = q.dir;
+    q
+}
+
+#[test]
+fn a_level_view_over_empty_space_lands_on_an_upright_plane_facing_the_eye() {
+    // The ground is a line on screen from here: nothing to land on, and the click was lost.
+    let m = model(&[]);
+    let r = run(&m, &from_the_right(0.3, 0.5, 0.001));
+    assert_eq!(r.kind, K::Free);
+    assert!(
+        close(r.point, [0.0, 0.3, 0.5]),
+        "through the origin: {:?}",
+        r.point
+    );
+}
+
+#[test]
+fn a_level_view_keeps_the_rubber_band_on_the_plane_of_its_start() {
+    let m = model(&[]);
+    let mut q = from_the_right(0.3, 0.5, 0.001);
+    q.start = Some([0.25, -0.2, 0.1]);
+    let r = run(&m, &q);
+    assert_eq!(r.kind, K::Free);
+    assert!(
+        close(r.point, [0.25, 0.3, 0.5]),
+        "through the start: {:?}",
+        r.point
+    );
+}
+
+#[test]
+fn a_nearly_level_view_does_not_land_on_ground_far_behind_the_model() {
+    let m = model(&[]);
+    let mut q = from_the_right(0.3, 0.5, 0.001);
+    q.dir = DVec3::new(-1.0, 0.0, -0.001).normalize().to_array();
+    q.px.forward = q.dir;
+    let r = run(&m, &q);
+    assert_eq!(r.kind, K::Free);
+    assert!(
+        r.point[0].abs() < 1e-9,
+        "stays near the model: {:?}",
+        r.point
+    );
+}
+
+#[test]
+fn a_cursor_above_the_horizon_still_lands_somewhere() {
+    // Perspective, looking down a little, the cursor up in the sky.
+    let m = model(&[]);
+    let mut q = from_the_right(0.5, 1.0, 0.001);
+    q.px.ortho = false;
+    q.px.forward = DVec3::new(-1.0, 0.0, -0.2).normalize().to_array();
+    q.dir = DVec3::new(-1.0, 0.0, 0.1).normalize().to_array();
+    let r = run(&m, &q);
+    assert_eq!(r.kind, K::Free);
+    assert!(
+        r.point[0].abs() < 1e-9,
+        "on the upright plane: {:?}",
+        r.point
+    );
+}
+
+#[test]
+fn a_view_that_looks_down_still_draws_on_the_ground() {
+    let m = model(&[]);
+    let mut q = from_the_right(0.0, 1.0, 0.001);
+    q.dir = DVec3::new(-1.0, 0.0, -1.0).normalize().to_array();
+    q.px.forward = q.dir;
+    let r = run(&m, &q);
+    assert!(r.point[2].abs() < 1e-12, "on the ground: {:?}", r.point);
+}

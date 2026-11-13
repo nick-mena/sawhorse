@@ -129,7 +129,7 @@ export function StylesPane({ style, shadows, onStyle, onShadows, onPreviewShadow
         {STYLE_PRESETS.map((p) => (
           <button key={p.name} type="button" aria-pressed={s.preset === p.name || (!s.preset && p.name === "Sawhorse" && compactStyle({ ...s, grid: true }) === null)} title={p.hint} onClick={() => onStyle(compactStyle({ ...p.style, grid: s.grid }))}>
             <span className={`preset-chip face-${p.style.face}`} aria-hidden="true"></span>
-            {p.name}
+            {p.label ?? p.name}
           </button>
         ))}
       </div>

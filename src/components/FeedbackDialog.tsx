@@ -1,6 +1,6 @@
 // Help > Log Feedback…: note a problem or an idea without leaving the work. A note that could
 // not be written stays in the box, and closing without saving keeps it for next time.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { appendFeedback, downloadBrowserFeedback, feedbackLocation, MAX_FEEDBACK_CHARS, type FeedbackContext, type FeedbackKind } from "../io/feedback";
 import { useDialogFocus } from "./useDialogFocus";
 
@@ -19,6 +19,13 @@ export function FeedbackDialog({ context, onSaved, onClose }: FeedbackDialogProp
   const [err, setErr] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [where, setWhere] = useState<string | null>(null);
+  // A note kept from last time opens selected: typing starts a new one rather than adding to
+  // the end of the old (Cmd+Z in the box brings it back), and an arrow key keeps it.
+  const kept = useRef(draft);
+  const noteBox = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (kept.current) noteBox.current?.select();
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -67,6 +74,7 @@ export function FeedbackDialog({ context, onSaved, onClose }: FeedbackDialogProp
       <label>
         <span>What happened, or what would be better?</span>
         <textarea
+          ref={noteBox}
           aria-label="Note"
           autoFocus
           rows={6}
@@ -81,6 +89,7 @@ export function FeedbackDialog({ context, onSaved, onClose }: FeedbackDialogProp
           }}
         />
       </label>
+      {kept.current && text === kept.current ? <p className="note">Kept from last time. Type to start a new note, or press an arrow key to add to it.</p> : null}
       {err ? (
         <p className="note err" role="alert">
           {err}

@@ -145,7 +145,7 @@ test("issue #6: a scene saved with the default style brings the grid back, also 
   await expect.poll(async () => (await looks(page)).face).toBe("x_ray");
   await hide();
   await addScene("Scene 3");
-  await page.getByRole("button", { name: /^Sawhorse/ }).click();
+  await page.getByRole("button", { name: /^BenchCraft/ }).click();
   await expect.poll(async () => (await looks(page)).face).toBe("textured");
   await show();
   await go("Scene 3");

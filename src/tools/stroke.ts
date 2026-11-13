@@ -2,7 +2,7 @@
 // live labels, and committing a stroke through the kernel's Draw op.
 import type { EditResult } from "../kernel/client";
 import type { CurveSpec, V3 } from "../kernel/types";
-import { drawOp, planeFromSnap, type DrawPlane, type DrawTarget } from "./draw";
+import { drawOp, facingNormal, planeAt, planeFromSnap, viewIsLevel, type DrawPlane, type DrawTarget } from "./draw";
 import { LockState } from "./lock";
 import { EMPTY_VIEW, Tool, inferenceLine, markerOf, type InferContext, type Snap, type ToolEvent, type ToolView } from "./tool";
 import type { Label } from "../components/Viewport";
@@ -19,6 +19,8 @@ export abstract class StrokeTool extends Tool {
   protected prefer: "auto" | "z" | "x" | "y" = "auto";
   /** Where the cursor is on the drawing plane (or in space for a free line). */
   protected cursor: V3 | null = null;
+  /** Which way the view looks, to tell when a level plane could not be drawn on. */
+  protected viewDir: V3 = [0, 0, -1];
 
   /** The gesture's current start point (axis lines run from it), or null before a click. */
   abstract start(): V3 | null;
@@ -64,13 +66,17 @@ export abstract class StrokeTool extends Tool {
   protected track(e: ToolEvent): void {
     this.snap = e.snap;
     this.cursor = e.snap?.point ?? null;
+    this.viewDir = e.forward ?? e.ray.dir;
     const s = e.picked?.surface;
     this.host.hover(s && s.at.kind === "region" ? { kind: "region", sketch: s.at.sketch, region: s.at.region } : null);
   }
 
   /** The plane a shape starting at this snap goes on. */
   protected planeFor(snap: Snap): DrawPlane {
-    return planeFromSnap(snap, this.prefer);
+    const plane = planeFromSnap(snap, this.prefer);
+    // Not on a face and looking level: a level plane would be a line on screen.
+    if (this.prefer === "auto" && plane.target.on === "plane" && viewIsLevel(this.viewDir)) return planeAt(snap.point, facingNormal(this.viewDir));
+    return plane;
   }
 
   /** Commit a stroke; `curve` (lane 23) makes it one curve (a circle, an arc, a polygon). */

@@ -6,8 +6,6 @@ import { isWebDemo, RELEASES_URL, REPO_URL, sitePage } from "./lib/site";
 import { ToolRail } from "./components/ToolRail";
 import { toolCursor } from "./components/toolCursor";
 import { stampLabels } from "./nesting/stamps";
-import { isMac } from "./lib/keys";
-import { navStyle } from "./lib/navPrefs";
 import { setViewInfoShown, viewInfoShown, type ViewInfo } from "./lib/viewPrefs";
 import { Viewport, type KernelState, type ViewportPointer } from "./components/Viewport";
 import { SidePanel, type PaneId } from "./components/SidePanel";
@@ -41,6 +39,9 @@ import { meshIndex } from "./lib/meshIndex";
 import { describe } from "./tools/select";
 import type { OverlayItem } from "./viewport/engine";
 import { startsValueEntry, toolById, type ToolId } from "./lib/tools";
+import { ModifierTap, tapOf } from "./lib/modifierTap";
+import { clipAlive, takeClip, type Clip } from "./lib/clipboard";
+import { describeSubject } from "./tools/xform";
 import { actionForEvent, keyOr, menuKeys, toolForAction, useShortcutsVersion, withKey } from "./lib/shortcuts";
 import { formatLength, M_PER_IN, UNIT_CHOICES, unitInfo, UNIT_SYSTEMS, type UnitSystem } from "./lib/units";
 import type { Projection, ViewId, ViewportEngine } from "./viewport/engine";
@@ -71,6 +72,7 @@ import { EXPORTS, MTL_TYPE, textureType, type ExportChoice } from "./io/exports"
 import type { ExportOptions, ImportUnit, OpOutcome } from "./kernel/types";
 import { ImportReport, type Report } from "./components/ImportReport";
 import { NameDialog, type NameRequest } from "./components/NameDialog";
+import { CncWorkspace } from "./components/CncWorkspace";
 import { SceneTabs } from "./components/SceneTabs";
 import { SheetsWorkspace } from "./sheets/SheetsWorkspace";
 import { ModeSwitch, type WorkMode } from "./sheets/SheetTabs";
@@ -300,6 +302,7 @@ export function App() {
   const [savedLogLen, setSavedLogLen] = useState<number | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [nameRequest, setNameRequest] = useState<NameRequest | null>(null);
+  const [cncOpen, setCncOpen] = useState(false);
   const [activeScene, setActiveScene] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [focusTags, setFocusTags] = useState(0);
@@ -548,6 +551,7 @@ export function App() {
           if (json === null) throw new Error("the unsaved work kept in this browser cannot be read");
           const s = await k.replay(json);
           void clearOffered();
+          setClip(null);
           live.current.scene = s;
           setNameSource(s.state, s.mesh);
           setScene(s);
@@ -583,7 +587,7 @@ export function App() {
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
   useEffect(() => {
-    document.title = `${dirty ? "• " : ""}${docName ? stem(docName) : "Untitled"} - Sawhorse`;
+    document.title = `${dirty ? "• " : ""}${docName ? stem(docName) : "Untitled"} - BenchCraft`;
     void setWindowTitle(`${docName ? stem(docName) : "Untitled"}${dirty ? " — Edited" : ""}`).catch(() => {});
   }, [dirty, docName]);
 
@@ -648,6 +652,7 @@ export function App() {
         pluginsRef.current?.documentOpened(null);
         setDocName(null);
         fileHandle.current = undefined;
+        setClip(null);
         setSavedLogLen(r.scene.state.log_len);
         if (e.units && UNIT_SYSTEMS.some((x) => x.id === e.units)) {
           setUnits(e.units as UnitSystem);
@@ -692,6 +697,7 @@ export function App() {
       pluginsRef.current?.documentOpened(f.name, opened.opened.plugin_data ?? null);
       setDocName(f.name);
       fileHandle.current = f.handle;
+      setClip(null);
       setSavedLogLen(r.scene.state.log_len);
       // Opened: the file is the copy to go back to (lane 16).
       markClean(r.scene.state.log_hash);
@@ -714,7 +720,7 @@ export function App() {
         const ext = extensionOf(f.name);
         if (ext === ".shz") await openBytes(f);
         else if (ALL_EXTENSIONS.includes(ext)) await importBytes(f);
-        else setMessage({ text: `${f.name}: not a file Sawhorse can open (use .shz, .skp, STL, 3MF, glTF, OBJ, DXF or SVG).`, error: true });
+        else setMessage({ text: `${f.name}: not a file BenchCraft can open (use .shz, .skp, STL, 3MF, glTF, OBJ, DXF or SVG).`, error: true });
       }
     },
     [openBytes, importBytes],
@@ -726,7 +732,7 @@ export function App() {
     async (files: File[]) => {
       for (const f of files) {
         if (!ALL_EXTENSIONS.includes(extensionOf(f.name))) {
-          setMessage({ text: `${f.name}: not a file Sawhorse can open (use .shz, .skp, STL, 3MF, glTF, OBJ, DXF or SVG).`, error: true });
+          setMessage({ text: `${f.name}: not a file BenchCraft can open (use .shz, .skp, STL, 3MF, glTF, OBJ, DXF or SVG).`, error: true });
           continue;
         }
         try {
@@ -746,6 +752,7 @@ export function App() {
       pluginsRef.current?.documentOpened(null);
       setDocName(null);
       fileHandle.current = undefined;
+      setClip(null);
       setSavedLogLen(r.scene.state.log_len);
       markClean(r.scene.state.log_hash);
       setReport(null);
@@ -1257,6 +1264,9 @@ export function App() {
 
   const driverRef = useRef<ToolDriver | null>(null);
   const memoryRef = useRef(new InferenceMemory());
+  // What the cursor rested on may be gone or have moved after any edit. Kept, it would go on
+  // offering snaps to things no longer on screen.
+  useEffect(() => memoryRef.current.retain(scene?.mesh ?? null, scene?.state.guides ?? []), [scene]);
   if (!driverRef.current) {
     driverRef.current = new ToolDriver(
       kernelResolver(
@@ -1322,7 +1332,7 @@ export function App() {
 
   const [showStats, setShowStats] = useState(() => viewInfoShown("stats"));
   const [showLegend, setShowLegend] = useState(() => viewInfoShown("legend"));
-  const altTap = useRef(false);
+  const modifierTap = useRef(new ModifierTap());
   const onPointer = useCallback((p: ViewportPointer) => {
     if (!activeRef.current) {
       if (p.type === "up" && p.button === 0) setMessage({ text: `${toolById(toolIdRef.current).label} arrives in a later lane.`, error: false });
@@ -1561,6 +1571,50 @@ export function App() {
     action();
     return Promise.resolve();
   }, []);
+
+  const clipRef = useRef<Clip | null>(null);
+  const [hasClip, setHasClip] = useState(false);
+  const setClip = useCallback((c: Clip | null) => {
+    clipRef.current = c;
+    setHasClip(c !== null);
+  }, []);
+
+  /** Copy or Cut the selection. Cut only marks it: Paste is what moves it (lib/clipboard.ts). */
+  const copySelection = useCallback(
+    async (cut: boolean) => {
+      const clip = await takeClip(host, cut);
+      if (typeof clip === "string") return setMessage({ text: clip, error: true });
+      setClip(clip);
+      const what = describeSubject(clip.subject, live.current.scene?.mesh ?? null);
+      setMessage({ text: cut ? `Cut ${what}. It stays until you paste it, then moves there.` : `Copied ${what}. Paste puts a copy where you click.`, error: false });
+    },
+    [host, setClip],
+  );
+
+  /** New parts from the CNC workspace ride on the cursor, as a paste does. Esc leaves them at the origin. */
+  const cncPlaced = useCallback(
+    async (objects: number[], text: string) => {
+      setCncOpen(false);
+      host.setSelection(objects.map((object) => ({ kind: "object" as const, object })));
+      const clip = await takeClip(host, true);
+      if (typeof clip === "string") return setMessage({ text, error: false });
+      selectTool("move");
+      (toolsRef.current?.get("move") as MoveTool).paste(clip);
+    },
+    [host, selectTool],
+  );
+
+  /** Paste: Move carries it on the cursor until a click puts it down. */
+  const paste = useCallback(() => {
+    const clip = clipRef.current;
+    if (!clip) return setMessage({ text: "Nothing to paste. Select something and copy it first.", error: true });
+    if (!clipAlive(clip.subject, live.current.scene?.state ?? null, live.current.scene?.mesh ?? null)) {
+      setClip(null);
+      return setMessage({ text: "What you copied has changed or no longer exists, so there is nothing to paste.", error: true });
+    }
+    selectTool("move");
+    (toolsRef.current?.get("move") as MoveTool).paste(clip, clip.cut ? () => setClip(null) : undefined);
+  }, [selectTool, setClip]);
 
   /** Delete / Backspace: erase the selection as one undo step. */
   const eraseSelection = useCallback(() => {
@@ -2275,6 +2329,7 @@ export function App() {
       // Sheets mode (lane 12) has its own keys (src/sheets/SheetsWorkspace.tsx); only undo,
       // redo and the file shortcuts are the app's there.
       const sheetsMode = modeRef.current === "sheets";
+      modifierTap.current.press(e, !textEntry && !sheetsMode);
       const bound = actionForEvent(e);
       // A plugin's shortcut (always with Ctrl, Alt or Meta; built-in keys win, see usePlugins).
       if (!bound && !sheetsMode && !textEntry && !inVcb && pluginsRef.current?.shortcut(e)) return;
@@ -2312,6 +2367,12 @@ export function App() {
           return;
         }
         if (sheetsMode) return;
+        // Text someone is typing or has highlighted keeps the system's own Copy and Paste.
+        if ((bound === "copy" || bound === "cut" || bound === "paste") && !(inVcb && live.current.vcbEditing) && !(bound !== "paste" && window.getSelection()?.isCollapsed === false)) {
+          e.preventDefault();
+          void afterPointer(() => (bound === "paste" ? paste() : void copySelection(bound === "cut")));
+          return;
+        }
         if (bound === "selectAll" && !inVcb) {
           e.preventDefault();
           void afterPointer(selectAll);
@@ -2329,20 +2390,10 @@ export function App() {
       }
       if (sheetsMode) return;
       if (e.key === "Shift" && !textEntry) activeRef.current?.onShift(true);
-      if ((e.key === "Control" || e.key === "Alt" || (e.key === "Meta" && isMac())) && !e.repeat && !textEntry) {
-        // A tap of Ctrl (Cmd on a Mac) or Alt alone (Move / Rotate copy, Move autofold). Alt
-        // must not focus the browser's menu bar.
+      if (tapOf(e.key) && !e.repeat && !textEntry) {
+        // Alt must not focus the browser's menu bar. Whether this is a tap is known when the
+        // key comes up (the keyup handler).
         if (e.key === "Alt") e.preventDefault();
-        // Under the Maya style Alt starts camera drags, so it is a tool's toggle only if it
-        // comes back up with no press in between (the keyup handler).
-        if (e.key === "Alt" && navStyle() === "maya") {
-          altTap.current = true;
-          return;
-        }
-        // After any click or tool key still on its way: the tap belongs to the tool that is
-        // active by then ("s" then Ctrl scales about the centre).
-        const mod = e.key === "Alt" ? "alt" : "ctrl";
-        void afterPointer(() => activeRef.current?.onModifier(mod));
         return;
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -2425,24 +2476,31 @@ export function App() {
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === "Shift") activeRef.current?.onShift(false);
-      if (e.key === "Alt" && altTap.current) {
-        altTap.current = false;
-        void afterPointer(() => activeRef.current?.onModifier("alt"));
-      }
+      // After any click or tool key still on its way: the tap belongs to the tool that is
+      // active by then ("s" then Ctrl scales about the centre).
+      const tapped = modifierTap.current.release(e.key);
+      if (tapped) void afterPointer(() => activeRef.current?.onModifier(tapped));
     };
-    // A press while Alt is down makes it a camera drag or an Alt+click, not a tap.
-    const onAnyPress = () => {
-      altTap.current = false;
+    // A mouse press or release while the key is down makes it a camera drag or a Ctrl+click,
+    // not a tap: holding Cmd as the button comes up is the option for that one gesture.
+    // A click on the model also ends any highlighted page text: Copy is about the model then.
+    const onAnyPress = (e: Event) => {
+      modifierTap.current.cancel();
+      if (e.type === "pointerdown" && (e.target as Element | null)?.id === "cv") window.getSelection()?.removeAllRanges();
     };
     window.addEventListener("keydown", onKey);
     window.addEventListener("keyup", onKeyUp);
     window.addEventListener("pointerdown", onAnyPress, true);
+    window.addEventListener("pointerup", onAnyPress, true);
+    window.addEventListener("blur", onAnyPress);
     return () => {
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("pointerdown", onAnyPress, true);
+      window.removeEventListener("pointerup", onAnyPress, true);
+      window.removeEventListener("blur", onAnyPress);
     };
-  }, [selectTool, undo, redo, zoomExtents, eraseSelection, selectAll, afterPointer, save, openDialog, importDialog, makeGroup, explode]);
+  }, [selectTool, undo, redo, zoomExtents, eraseSelection, selectAll, afterPointer, save, openDialog, importDialog, makeGroup, explode, paste, copySelection]);
 
   // Lane 24 (issue #13): the unit chip opens a picker (it used to cycle), the status line
   // names the units on an empty document, and Edit > Units lists the same choices.
@@ -2588,6 +2646,10 @@ export function App() {
         { label: `Undo${stepName(st?.undo_depth, st?.stats.hash) ? ` ${stepName(st?.undo_depth, st?.stats.hash)}` : ""}`, keys: menuKeys("undo"), disabled: !st?.can_undo, onSelect: () => void undo() },
         { label: "Redo", keys: menuKeys("redo"), disabled: !st?.can_redo, onSelect: () => void redo() },
         "-",
+        { label: "Cut", keys: menuKeys("cut"), title: "What you cut stays in place until you paste it, then moves there", disabled: !selection.length, onSelect: () => void copySelection(true) },
+        { label: "Copy", keys: menuKeys("copy"), disabled: !selection.length, onSelect: () => void copySelection(false) },
+        { label: "Paste", keys: menuKeys("paste"), disabled: !hasClip, onSelect: () => paste() },
+        "-",
         { label: "Select All", keys: menuKeys("selectAll"), onSelect: selectAll },
         ...(selection.length === 1 && selection[0].kind === "section"
           ? (() => {
@@ -2699,7 +2761,10 @@ export function App() {
           : []),
       ],
       Plugins: plugins.menu,
-      Tools: [{ label: "Section Plane", title: "Cut the model with a plane (no default key)", checked: toolId === "section", onSelect: () => selectTool("section") }],
+      Tools: [
+        { label: "Section Plane", title: "Cut the model with a plane (no default key)", checked: toolId === "section", onSelect: () => selectTool("section") },
+        { label: "CNC…", title: "Draw an outline with curves in 2D, over a reference image if you like, and bring it in as a part", onSelect: () => setCncOpen(true) },
+      ],
       Help: [
         { label: "Log Feedback…", keys: menuKeys("feedback"), title: "Note a problem or an idea in a log kept on this device", onSelect: () => setFeedbackOpen(true) },
         // The browser demo's way back to the site.
@@ -2716,7 +2781,7 @@ export function App() {
       ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, addParts, selectTool, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
+    [hasClip, paste, copySelection, shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, addParts, selectTool, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
   );
 
   const valueLabel = active?.valueLabel() ?? null;
@@ -2780,6 +2845,21 @@ export function App() {
       {isWebDemo() ? <DemoBanner /> : null}
       {report ? <ImportReport report={report} onClose={() => setReport(null)} /> : null}
       {nameRequest ? <NameDialog req={nameRequest} onClose={() => setNameRequest(null)} /> : null}
+      {cncOpen ? (
+        <CncWorkspace
+          state={st ?? null}
+          units={units}
+          apply={apply}
+          lastError={() => live.current.lastError}
+          imageHref={sheetHref}
+          onPlaced={(objects, text) => void cncPlaced(objects, text)}
+          feedback={{ file: docTitle, edited: dirty }}
+          onClose={(text) => {
+            setCncOpen(false);
+            if (text) setMessage({ text, error: false });
+          }}
+        />
+      ) : null}
       {settingsOpen ? <SettingsDialog url={gate.url} status={gate.status} onUrl={gate.setUrl} onRecheck={gate.recheck} onClose={() => setSettingsOpen(false)} /> : null}
       {shortcutsOpen ? <ShortcutsDialog plugins={plugins.shortcutList} onClose={() => setShortcutsOpen(false)} /> : null}
       {feedbackOpen ? (

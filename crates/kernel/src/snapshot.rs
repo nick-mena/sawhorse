@@ -107,6 +107,13 @@ pub struct SnapFace {
 
 /// A texture image: its path inside the archive (`assets/...`), its type, and (in an op or
 /// an in-memory snapshot) its bytes. A `.shz` keeps the bytes as the archive entry instead.
+/// A CNC drawing as saved: its number and its JSON, which the kernel does not read.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct SnapCncDrawing {
+    pub id: u64,
+    pub json: String,
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 #[cfg_attr(feature = "arbitrary", derive(arbitrary::Arbitrary))]
 pub struct SnapTexture {
@@ -432,6 +439,9 @@ pub struct Snapshot {
     /// Texture images (lane 10), in path order.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub textures: Vec<SnapTexture>,
+    /// CNC drawings (ADR-0014), in id order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub cnc_drawings: Vec<SnapCncDrawing>,
     /// The drawing style and the sun and shadows (lane 10). Absent: the defaults.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub style: Option<crate::looks::Style>,
@@ -1029,6 +1039,14 @@ impl Model {
                     data: t.data.as_ref().clone(),
                 })
                 .collect(),
+            cnc_drawings: self
+                .cnc_drawings
+                .iter()
+                .map(|(id, json)| SnapCncDrawing {
+                    id: *id,
+                    json: json.clone(),
+                })
+                .collect(),
             style: self.style.clone(),
             shadows: self.shadows,
             sections: self
@@ -1320,6 +1338,15 @@ impl Model {
         }
         // Lane 16: the bytes and pixels of all of them, before any is drawn.
         crate::limits::check_textures(m.textures.values())?;
+        for d in &s.cnc_drawings {
+            crate::profile::check_drawing(
+                d.id,
+                &d.json,
+                m.cnc_drawings.values().map(String::len),
+                m.cnc_drawings.len(),
+            )?;
+            m.cnc_drawings.insert(d.id, d.json.clone());
+        }
         if let Some(st) = &s.style {
             m.set_style(Some(st))?;
         }

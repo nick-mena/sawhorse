@@ -533,7 +533,7 @@ test.describe("private SketchUp fixtures (SAWHORSE_PRIVATE_FIXTURES)", () => {
     // IMPORT: opened, not refused; the report says what the file holds, as a plain report.
     expect.soft(refused, "IMPORT: not refused").toBe(false);
     expect.soft(title, "IMPORT: the report's title").toBe("Opened blank-26-purged.skp: an empty model");
-    expect.soft(lines, "IMPORT: the report's lines").toEqual(["blank-26-purged has nothing drawn in it: opened as an empty model", "units: Inches", "style: Architectural Design Style (Sawhorse's own look kept)"]);
+    expect.soft(lines, "IMPORT: the report's lines").toEqual(["blank-26-purged has nothing drawn in it: opened as an empty model", "units: Inches", "style: Architectural Design Style (BenchCraft's own look kept)"]);
     await expect.soft(page.getByTestId("import-report"), "IMPORT: not an error report").not.toHaveClass(/err/);
     expect.soft(last, "IMPORT: no import recorded").toBeNull();
     // The file's units: inches (fractional), in the status bar's unit button.

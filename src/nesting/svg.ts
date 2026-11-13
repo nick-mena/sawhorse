@@ -50,7 +50,7 @@ export function pieceSvg(n: Nesting, piece: StockPiece, o: PieceSvgOptions): str
     `<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="${n3(TW)}mm" height="${n3(TH)}mm" viewBox="0 0 ${n3(TW)} ${n3(TH)}" font-family="Helvetica, Arial, sans-serif" data-stock="${esc(piece.stock)}" data-piece="${piece.index}" data-units="mm">`,
   );
   out.push(`<title>${esc(`${o.title}: ${pieceTitle(piece)}`)}</title>`);
-  out.push(`<desc>Cutting diagram by Sawhorse, 1:1 in millimetres. ${esc(settingsText(n, r))}.</desc>`);
+  out.push(`<desc>Cutting diagram by BenchCraft, 1:1 in millimetres. ${esc(settingsText(n, r))}.</desc>`);
   out.push(`<rect x="0" y="0" width="${n3(TW)}" height="${n3(TH)}" fill="#ffffff"/>`);
   out.push(`<text x="${n3(ox)}" y="${n3(font * 1.3)}" font-size="${n3(font * 1.1)}" font-weight="bold" fill="#111">${esc(`${o.title}: ${lines[0]}`)}</text>`);
   out.push(`<text x="${n3(ox)}" y="${n3(font * 2.5)}" font-size="${n3(font * 0.8)}" fill="#444">${esc(lines[1])}</text>`);

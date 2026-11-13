@@ -34,6 +34,9 @@ pub enum SketchError {
         kind: &'static str,
         why: &'static str,
     },
+    /// A part's outline cannot be built (ADR-0014). The words reach the status line.
+    #[error("{0}")]
+    BadProfile(&'static str),
     #[error("bad sketch plane: {0}")]
     Plane(#[from] PlaneError),
 }

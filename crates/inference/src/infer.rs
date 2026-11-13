@@ -157,6 +157,10 @@ fn line(from: DVec3, to: DVec3, kind: InferenceKind) -> InfLine {
     }
 }
 
+/// Under this much vertical in the view direction (about half a degree) the view counts as
+/// level. `viewIsLevel` in src/tools/draw.ts uses the same figure.
+const LEVEL_VIEW: f64 = 0.01;
+
 struct Ctx {
     ray: Ray,
     px: PixelModel,
@@ -352,6 +356,12 @@ pub fn infer(scene: &Scene, q: &InferQuery) -> Option<Inference> {
             ));
         }
     }
+    // The origin has no geometry of its own, and the grid only finds it among thousands of
+    // other points when the view is close enough to draw them.
+    // Only on a plane through it: projected onto another it would be a snap to empty space.
+    if ctx.on_plane(DVec3::ZERO) {
+        points.extend(ctx.point(InferenceKind::Origin, DVec3::ZERO, None));
+    }
     // Intersections of nearby edges with each other and with guide lines.
     let line_near: Vec<usize> = near
         .iter()
@@ -371,6 +381,11 @@ pub fn infer(scene: &Scene, q: &InferQuery) -> Option<Inference> {
                 points.extend(ctx.point(InferenceKind::Intersection, p, None));
             }
         }
+        for d in AXES {
+            if let Some(p) = segment_line_crossing(si.a, si.b, DVec3::ZERO, d) {
+                points.extend(ctx.point(InferenceKind::Intersection, p, None));
+            }
+        }
     }
     // Guide / guide crossings near the cursor.
     let lines_g: Vec<_> = scene
@@ -382,6 +397,17 @@ pub fn infer(scene: &Scene, q: &InferQuery) -> Option<Inference> {
         for h in &lines_g[k + 1..] {
             if let Some((s, u)) = line_line(g.point, g.dir, h.point, h.dir) {
                 let (p, r) = (g.point + g.dir * s, h.point + h.dir * u);
+                if p.distance(r) <= 1e-9 * (1.0 + p.length()) {
+                    points.extend(ctx.point(InferenceKind::Intersection, p, None));
+                }
+            }
+        }
+    }
+    // Guide / axis crossings.
+    for g in &lines_g {
+        for d in AXES {
+            if let Some((s, u)) = line_line(g.point, g.dir, DVec3::ZERO, d) {
+                let (p, r) = (g.point + g.dir * s, d * u);
                 if p.distance(r) <= 1e-9 * (1.0 + p.length()) {
                     points.extend(ctx.point(InferenceKind::Intersection, p, None));
                 }
@@ -469,6 +495,36 @@ pub fn infer(scene: &Scene, q: &InferQuery) -> Option<Inference> {
                 px: d,
                 t: ray.param(p),
                 entity: Some(Entity::Guide { guide: g.id }),
+                lines: Vec::new(),
+            });
+        }
+    }
+    // The drawn axes are lines to snap to, like guides that are always there. A gesture
+    // already running along one keeps its own axis inference, which rounds lengths.
+    for (d, kind) in [
+        (DVec3::X, InferenceKind::OnAxisX),
+        (DVec3::Y, InferenceKind::OnAxisY),
+        (DVec3::Z, InferenceKind::OnAxisZ),
+    ] {
+        if start.is_some_and(|s| s.cross(d).length() <= 1e-9 * (1.0 + s.length()))
+            || !(ctx.on_plane(DVec3::ZERO) && ctx.in_plane(d))
+            // Blue stands up off the ground, so on screen it crosses things far behind it:
+            // what the cursor is really over comes first.
+            || (kind == InferenceKind::OnAxisZ && ctx.plane.is_none() && hit.is_some())
+        {
+            continue;
+        }
+        if let Some((p, dist)) = ctx.on_line(DVec3::ZERO, d)
+            && dist <= q.line_px
+            && visible(&px, hit.as_ref(), p, ray.param(p))
+        {
+            lines.push(Cand {
+                kind,
+                rank: kind.priority(),
+                point: p,
+                px: dist,
+                t: ray.param(p),
+                entity: None,
                 lines: Vec::new(),
             });
         }
@@ -580,7 +636,19 @@ pub fn infer(scene: &Scene, q: &InferQuery) -> Option<Inference> {
             None => match hit {
                 Some(h) => (DVec3::from_array(h.point), InferenceKind::OnFace),
                 None => {
-                    let t = ray_plane(&ray, DVec3::ZERO, DVec3::Z)?;
+                    // Looking level the ground is only a line on screen, and a cursor above the
+                    // horizon never meets it. An upright plane facing the eye, through where the
+                    // gesture began, gives the click somewhere to land.
+                    let forward = DVec3::from_array(px.forward);
+                    let ground = (forward.z.abs() >= LEVEL_VIEW)
+                        .then(|| ray_plane(&ray, DVec3::ZERO, DVec3::Z))
+                        .flatten();
+                    let t = ground.or_else(|| {
+                        let facing = DVec3::new(forward.x, forward.y, 0.0)
+                            .try_normalize()
+                            .unwrap_or(forward);
+                        ray_plane(&ray, start.unwrap_or(DVec3::ZERO), facing)
+                    })?;
                     (ray.at(t), InferenceKind::Free)
                 }
             },
@@ -643,6 +711,11 @@ pub fn infer(scene: &Scene, q: &InferQuery) -> Option<Inference> {
 
     let mut chosen = match (best_point, line_best) {
         (Some(p), _) => p,
+        // Close in, the whole steps along an axis stay grid points.
+        (None, Some(l)) if l.kind == InferenceKind::OnAxisZ => {
+            surface_cand().and_then(|s| grid_cand(&s)).unwrap_or(l)
+        }
+        (None, Some(l)) if l.kind.is_on_axis() => grid_cand(&l).unwrap_or(l),
         (None, Some(l)) => l,
         (None, None) => {
             let s = surface_cand()?;

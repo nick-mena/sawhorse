@@ -42,7 +42,7 @@ export const TOOL_GROUPS: ToolDef[][] = [
     { id: "arc", label: "Arc", key: "a", keyCap: "A", hint: "Two-point arc. Click ends, then bulge. Type a radius or 12s for segments.", vcb: "Bulge" },
   ],
   [
-    { id: "pushpull", label: "Push", key: "p", keyCap: "P", hint: "Click a face and move. Type 3/4 for 3/4 in. Double-click repeats the last distance.", vcb: "Distance" },
+    { id: "pushpull", label: "Push", key: "p", keyCap: "P", hint: "Click a face and move. Tap Ctrl for a new face. Type 3/4 for 3/4 in. Double-click repeats.", vcb: "Distance" },
     { id: "move", label: "Move", key: "m", keyCap: "M", hint: "Click, move, click. Ctrl copies. Type 36 then x3 for an array.", vcb: "Distance" },
     { id: "rotate", label: "Rotate", key: "q", keyCap: "Q", hint: "Set the protractor on a face, click the start angle, then the end. Type 90.", vcb: "Angle" },
     { id: "scale", label: "Scale", key: "s", keyCap: "S", hint: "Drag a grip. Type 2 for 2x, or 48in for an absolute size.", vcb: "Scale" },

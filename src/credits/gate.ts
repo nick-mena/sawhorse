@@ -149,13 +149,13 @@ ${url}`;
 export function gateLine(status: GateStatus, url: string | null): string {
   switch (status) {
     case "off":
-      return "Renders are off: no render service is set. Sawhorse needs none to model, list or nest.";
+      return "Renders are off: no render service is set. BenchCraft needs none to model, list or nest.";
     case "checking":
       return `Asking the render service at ${url} if it is there…`;
     case "unreachable":
       return `Renders are off: the render service at ${url} did not answer its health check.`;
     case "not_render":
-      return `Renders are off: ${url} answered, but not as a Sawhorse render service (its /healthz did not name the service). Check the address.`;
+      return `Renders are off: ${url} answered, but not as a BenchCraft render service (its /healthz did not name the service). Check the address.`;
     case "ready":
       return `Renders are on: the render service at ${url} answered. The Credits chip and the Render pane are shown.`;
   }

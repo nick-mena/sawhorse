@@ -18,6 +18,10 @@ export type InferenceKind =
   | "from-point"
   | "on-guide"
   | "guide-point"
+  | "origin"
+  | "on-axis-x"
+  | "on-axis-y"
+  | "on-axis-z"
   | "grid"
   | "free";
 
@@ -42,6 +46,10 @@ export const INFERENCE_STYLES: Record<InferenceKind, InferenceStyle> = {
   "from-point": { label: "From Point", token: "--inf-from" },
   "on-guide": { label: "On Guide", token: "--inf-guide" },
   "guide-point": { label: "Guide Point", token: "--inf-guide" },
+  origin: { label: "Origin", token: "--inf-end" },
+  "on-axis-x": { label: "On Red Axis", token: "--axis-x" },
+  "on-axis-y": { label: "On Green Axis", token: "--axis-y" },
+  "on-axis-z": { label: "On Blue Axis", token: "--axis-z" },
   grid: { label: "Grid", token: "--inf-grid" },
   free: { label: "", token: "--muted" },
 };

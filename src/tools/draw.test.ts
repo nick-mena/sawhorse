@@ -56,6 +56,9 @@ describe("drawing planes and frames", () => {
     const up = planeForSegment([0, 0, 0], [1, 0, 1], [0, 0, -1]);
     expect(up.target.on).toBe("plane");
     expect(Math.abs((up.target as { normal: V3 }).normal[1])).toBeCloseTo(1, 12);
+    // Looking level, a level plane is only a line on screen: the upright plane holds it instead.
+    const seen = planeForSegment([0, 0, 1], [0, 2, 1], [-1, 0, 0]);
+    expect(Math.abs(seen.frame.normal[0])).toBeCloseTo(1, 12);
     const plumb = planeForSegment([0, 0, 0], [0, 0, 1], [0.6, 0.8, -1]);
     expect((plumb.target as { normal: V3 }).normal).toEqual([0.6, 0.8, 0]);
   });

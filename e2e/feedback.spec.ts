@@ -30,3 +30,22 @@ test("Help > Log Feedback adds a note with the app's state, and the shortcut ope
   expect(log).toContain("- Working in: Model, Select tool");
   expect(log).toContain("- App: browser");
 });
+
+test("a note closed with Esc is kept, selected, so a new one replaces it rather than joining it", async ({ page }) => {
+  await ready(page);
+  const box = page.getByRole("dialog", { name: dialog });
+  await page.keyboard.press("Control+Shift+F");
+  await page.keyboard.type("half a thought");
+  await page.keyboard.press("Escape");
+  await expect(box).toHaveCount(0);
+  await page.keyboard.press("Control+Shift+F");
+  const note = box.getByRole("textbox", { name: "Note" });
+  await expect(note).toHaveValue("half a thought");
+  await expect(box).toContainText("Kept from last time");
+  await page.keyboard.type("A fresh note");
+  await expect(note).toHaveValue("A fresh note");
+  await page.keyboard.press("Control+Enter");
+  const log = await page.evaluate(() => localStorage.getItem("sawhorse.feedback"));
+  expect(log).toContain("> A fresh note");
+  expect(log).not.toContain("half a thought");
+});

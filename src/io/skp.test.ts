@@ -268,7 +268,7 @@ describe("skp mapping", () => {
     expect(r.op).toBeNull();
     expect(r.empty).toEqual({ units: "mm", unitsWord: "Millimeter", style: { name: "Architectural Design Style", face: null } });
     expect(r.notes[0]).toBe("blank has nothing drawn in it: opened as an empty model");
-    expect(r.notes).toEqual(expect.arrayContaining(["units: Millimeter", "style: Architectural Design Style (Sawhorse's own look kept)"]));
+    expect(r.notes).toEqual(expect.arrayContaining(["units: Millimeter", "style: Architectural Design Style (BenchCraft's own look kept)"]));
     const legacy = modelToOp(blank(null, [{ name: "Hidden Line" }]), "old.skp");
     expect(legacy.empty).toEqual({ units: null, unitsWord: null, style: { name: "Hidden Line", face: "hidden_line" } });
     expect(unitsOf("Inches")).toBe("frac-in");

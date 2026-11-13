@@ -20,7 +20,7 @@ export interface SheetImage {
 /** The sheets as one PDF, a page per sheet at its paper size, everything vector but the
  * images. Deterministic: the same sheets give the same bytes. */
 export function sheetsPdf(renders: SheetRender[], images: Map<string, SheetImage>, title: string): Uint8Array {
-  const doc = new PdfDoc({ title, creator: "Sawhorse" });
+  const doc = new PdfDoc({ title, creator: "BenchCraft" });
   const names = new Map<string, string>();
   for (const [path, im] of [...images].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) names.set(path, doc.addJpeg(im.jpeg, im.width, im.height));
   for (const r of renders) {

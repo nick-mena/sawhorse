@@ -62,7 +62,7 @@ export function CutListReport({ list, title }: { list: CutList | null; title: st
           ))}
         </ul>
       </section>
-      <footer>{scopeNote(r)} Made with Sawhorse.</footer>
+      <footer>{scopeNote(r)} Made with BenchCraft.</footer>
     </article>,
     document.body,
   );

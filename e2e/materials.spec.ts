@@ -91,7 +91,7 @@ test("paint a box from the library, sample it, position its texture, switch styl
   await expect.poll(async () => (await looks(page)).face).toBe("x_ray");
   await page.getByRole("button", { name: /Shop drawing/ }).click();
   await expect.poll(async () => (await looks(page)).profiles).toBe(true);
-  await page.getByRole("button", { name: /^Sawhorse/ }).click();
+  await page.getByRole("button", { name: /^BenchCraft/ }).click();
   await expect.poll(async () => (await looks(page)).face).toBe("textured");
 
   // The sun: shadows on at 3 pm (west of south, above the horizon).

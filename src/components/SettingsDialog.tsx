@@ -57,7 +57,7 @@ export function SettingsDialog({ url, status, onUrl, onRecheck, onClose }: Setti
             setNavStyle(v);
           }}
         >
-          <option value="sawhorse">Sawhorse</option>
+          <option value="sawhorse">BenchCraft</option>
           <option value="maya">Maya</option>
         </select>
       </label>

@@ -972,7 +972,7 @@ export function modelToOp(model: SkpModel, fileName: string): SkpImport {
   for (const [who, n] of cn.records) ctx.notes.add(n === 1 ? `${who}: 1 curve's record did not match its edges; it came in as edges` : `${who}: ${n} curves' records did not match their edges; they came in as edges`);
   if (cn.chain) ctx.notes.add(`${cn.chain} curve${cn.chain === 1 ? "" : "s"} whose edges do not make one chain came in as plain edges`);
   if (cn.cut) ctx.notes.add(`${cn.cut} arc${cn.cut === 1 ? "" : "s"} cut short in SketchUp (an end on a chord) came in as ${cn.cut === 1 ? "a polyline" : "polylines"}`);
-  if (cn.ellipse) ctx.notes.add(`${cn.ellipse} elliptical curve${cn.ellipse === 1 ? "" : "s"} (an arc scaled unevenly in SketchUp) came in as ${cn.ellipse === 1 ? "a polyline" : "polylines"}: Sawhorse has no ellipse`);
+  if (cn.ellipse) ctx.notes.add(`${cn.ellipse} elliptical curve${cn.ellipse === 1 ? "" : "s"} (an arc scaled unevenly in SketchUp) came in as ${cn.ellipse === 1 ? "a polyline" : "polylines"}: BenchCraft has no ellipse`);
   for (const [k, n] of ctx.skipped) ctx.notes.add(`not imported: ${n} ${SKIPPED_LABEL[k] ?? k}`);
   if (model.units) ctx.notes.add(`model units: ${model.units} (geometry is converted from inches)`);
   if (ctx.summary.sections)
@@ -985,7 +985,7 @@ export function modelToOp(model: SkpModel, fileName: string): SkpImport {
     const empty: SkpEmpty = { units: unitsOf(model.units), unitsWord: model.units ?? null, style };
     const notes = [`${stem} has nothing drawn in it: opened as an empty model`];
     if (empty.units) notes.push(`units: ${model.units}`);
-    if (style) notes.push(`style: ${style.name}${style.face ? "" : " (Sawhorse's own look kept)"}`);
+    if (style) notes.push(`style: ${style.name}${style.face ? "" : " (BenchCraft's own look kept)"}`);
     return { op: null, notes: [...notes, ...[...ctx.notes].filter((n) => !n.startsWith("model units"))], summary: ctx.summary, empty };
   }
   const importOp: KernelOp = { op: "import", items: ctx.items, ...(ctx.strokes.length ? { strokes: ctx.strokes } : {}), materials, scenes, hidden_tags, definitions: ctx.defs, nodes };

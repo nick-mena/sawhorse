@@ -2,8 +2,8 @@
 // along its normal with a live preview, and letting go commits. Or click, move, click.
 // Type a distance at any point (it goes the way the cursor went; a negative value flips it);
 // with no gesture going, a typed distance applies to the last face or region drawn or
-// clicked. Double-click a face to repeat the last distance on it. Hold Ctrl when letting go
-// (or clicking) to pull out a new face and leave a seam where the old one was.
+// clicked. Double-click a face to repeat the last distance on it. Tap Ctrl (or hold it when
+// letting go) to pull out a new face and leave a seam where the old one was.
 //
 // The face's normal is a locked inference line, so the cursor also snaps to points of
 // other geometry projected onto it (push until level with a neighbour's corner). Pushing in
@@ -62,6 +62,8 @@ export class PushTool extends Tool {
   /** The press that started the current gesture (its click does not commit). */
   private fresh = false;
   private ctrl = false;
+  /** Ctrl was tapped: the next pull makes a new face instead of moving this one. */
+  private newFace = false;
   /** The last press was on a face the editing context does not offer. */
   private refused = false;
   /** The last committed signed distance (double-click repeats it). */
@@ -78,6 +80,18 @@ export class PushTool extends Tool {
   reset(): void {
     this.g = null;
     this.fresh = false;
+    this.newFace = false;
+  }
+
+  onModifier(key: "ctrl" | "alt"): void {
+    if (key !== "ctrl") return;
+    this.newFace = !this.newFace;
+    this.host.status(this.newFace ? "New face: pulling out leaves the old face behind as a seam. Tap Ctrl again to move the face instead." : "Moving the face (no new face). Tap Ctrl to pull out a new face.");
+    this.host.changed();
+  }
+
+  private addsFace(): boolean {
+    return this.newFace || this.ctrl;
   }
 
   activate(): void {
@@ -143,7 +157,7 @@ export class PushTool extends Tool {
             h.changed();
           }
         });
-        h.status(`Pushing ${describeTarget(t)}: drag, or move and click, or type a distance. Hold Ctrl to pull out a new face.`);
+        h.status(`Pushing ${describeTarget(t)}: drag, or move and click, or type a distance. ${this.newFace ? "Pulling out a new face. Tap Ctrl to move the face instead." : "Tap Ctrl to pull out a new face."}`);
         h.changed();
         return;
       }
@@ -177,11 +191,12 @@ export class PushTool extends Tool {
       case "dblclick": {
         const s = e.picked?.surface;
         const t = s ? targetOf(s.at) : null;
+        const addsFace = this.addsFace();
         this.reset();
         h.changed();
         if (!t || this.last === null) return;
         h.setTarget(t);
-        this.apply(t, this.last, e.ctrl, "Repeated");
+        this.apply(t, this.last, addsFace, "Repeated");
         return;
       }
       case "leave":
@@ -203,22 +218,25 @@ export class PushTool extends Tool {
       // Mid-gesture: the typed distance goes the way the cursor went.
       // (Typed values go to the kernel as they are, so a zero is refused there, typed.)
       const sign = g.d < 0 ? -1 : 1;
+      const addsFace = this.addsFace();
       this.reset();
       this.host.changed();
-      this.apply(g.target, sign * typed, this.ctrl);
+      this.apply(g.target, sign * typed, addsFace);
       return;
     }
     const t = h.target();
     if (!t) return void h.status("Click a face or a region first, then type the distance.", true);
-    this.apply(t, typed, false);
+    this.apply(t, typed, this.newFace);
+    this.newFace = false;
   }
 
   private commit(d: number, ctrl: boolean): void {
     const g = this.g;
+    const addsFace = ctrl || this.newFace;
     this.reset();
     this.host.changed();
     if (!g || Math.abs(d) < MIN_PUSH) return;
-    this.apply(g.target, d, ctrl);
+    this.apply(g.target, d, addsFace);
   }
 
   private apply(t: Target, d: number, ctrl: boolean, verb?: string): void {
@@ -245,13 +263,14 @@ export class PushTool extends Tool {
     if (!g) return { ...EMPTY_VIEW, marker };
     const off = mul(g.normal, g.d);
     const overlay = [];
-    const color = g.d < 0 ? "--warn" : "--sel";
+    const adding = this.addsFace() && g.target.kind === "face" && g.d > 0;
+    const color = g.d < 0 ? "--warn" : adding ? "--ok" : "--sel";
     for (const ring of g.rings) {
       overlay.push({ kind: "loop" as const, points: ring.map((p) => add(p, off)), color, width: 2 });
       if (Math.abs(g.d) > MIN_PUSH) overlay.push({ kind: "segments" as const, points: ring.flatMap((p) => [p, add(p, off)]), color, width: 1.25 });
     }
     overlay.push({ kind: "segments" as const, points: [g.origin, add(g.origin, off)], color: INFERENCE_STYLES[axisKind(g.normal)].token, width: 1.25, dashed: true });
     const at = add(g.origin, off);
-    return { ...EMPTY_VIEW, marker, overlay, labels: [{ at, text: `${g.d < 0 ? "−" : ""}${this.host.fmt(Math.abs(g.d))}${this.ctrl && g.d > 0 ? " +" : ""}`, className: "live" }] };
+    return { ...EMPTY_VIEW, marker, overlay, labels: [{ at, text: `${g.d < 0 ? "−" : ""}${this.host.fmt(Math.abs(g.d))}${adding ? " +" : ""}`, className: "live" }] };
   }
 }
