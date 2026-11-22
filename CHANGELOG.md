@@ -4,6 +4,12 @@ All notable changes to Sawhorse are recorded here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added (macOS fork, 2026-11-16)
+- Joinery (ADR-0015, step 1). The Joint tool now makes named joints as well as free-form cuts: tap Alt to step through Cut With Selection, Mortise and Tenon, Dado, Rabbet and Half-Lap (also on the Tools menu). Select the board that goes in (the rail, the shelf), click the board that takes it (the leg, the side), and both are cut in one undo step. A rail drawn running into the leg is trimmed back to its shoulder.
+- Sizes start where a woodworker would: a tenon a third of the rail's thickness at the nearest chisel size, shoulders as thick as the tenon, 2/3 of the way into the leg; a dado a third of the side's thickness deep, a rabbet half. Type new sizes straight after the joint (`3/8, 2, 1-1/4` for a tenon; one depth for the others); a length as deep as the leg makes a through tenon. A dado clicked near one end of the side stops short of the far edge.
+- Joints that can't be made are refused in words ("The tenon would be thicker than the rail…"), and nothing changes. A joint on a component cuts every copy, and the status line says how many.
+- The Attributes pane lists a part's joints and what each is joined to. Joints are saved in the file (docs/format.md, `part.joints`); at most 256 on one part (docs/LIMITS.md).
+
 ### Added (macOS fork, 2026-11-12)
 - Loop Cut (K): a ring of edges all the way around a part, square to the edge you point at, previewed before you click. Type a distance from the nearer end, `/3` to divide the edge evenly, or a value straight after a cut to move it. Each band between rings can then be pushed or pulled on its own. One undo step; a cut through a hole in a face is refused in words.
 - Solid tools: Tools > Union, Subtract, Intersect and Split (Solids on the rail; Alt steps through them). Subtract takes the cutter away, Intersect keeps only the overlap, and Split leaves three parts. Each is one undo step and refuses in words.

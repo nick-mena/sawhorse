@@ -46,6 +46,7 @@ A model that large is still slow to work in where every solid is involved: the c
 | Materials | 4,096 per model (512 of them with images) |
 | Scenes, section planes | 1,000 each per model |
 | Stock library | 200 stocks; kerf up to 1/2 in, trim up to 4 in; stock 1 mm to 10 m |
+| Joints on one part | 256 | ADR-0015. Each part lists its joints in the Attributes pane; a file claiming more is refused when it is opened. |
 | Drawing sheets | 200 sheets, 2,000 items per sheet |
 | `.shz` thumbnail | 100 KB (a larger one is left out) |
 

@@ -422,6 +422,8 @@ pub enum KernelError {
     #[error(transparent)]
     Parts(#[from] PartsError),
     #[error(transparent)]
+    Joint(#[from] crate::joinery::JointError),
+    #[error(transparent)]
     Stock(#[from] StockError),
     #[error(transparent)]
     Tessellate(#[from] TessellateError),

@@ -93,3 +93,72 @@ describe("Joint", () => {
     expect(h.sel).toEqual([{ kind: "object", object: 2 }]);
   });
 });
+
+describe("Joint: the joinery modes (ADR-0015)", () => {
+  const note = { id: 1, kind: "mortise_tenon", role: "receives", thickness_nm: 6_350_000, width_nm: 63_500_000, depth_nm: 30_162_500 } as const;
+  const jointDone: OpOutcome = { kind: "joint_made", joint: { ...note }, objects: [1, 2], copies: 4 };
+
+  it("Alt steps from Cut through the joints, and the value box says what to type", () => {
+    const t = new JointTool(fakeHost({ outcome: jointDone }));
+    expect(t.current()).toBe("cut");
+    expect(t.valueLabel()).toBeNull();
+    t.onModifier("alt");
+    expect(t.current()).toBe("mortise_tenon");
+    expect(t.valueLabel()).toBe("Thickness, width, length");
+    for (const want of ["dado", "rabbet", "half_lap", "cut"]) {
+      t.onModifier("alt");
+      expect(t.current()).toBe(want);
+    }
+  });
+
+  it("the board picked first goes into the board clicked, and the sizes are said", async () => {
+    const h = fakeHost({ outcome: jointDone });
+    const t = new JointTool(h);
+    t.setMode("mortise_tenon");
+    await click(t, 2);
+    await click(t, 1);
+    await Promise.resolve();
+    expect(h.ops).toEqual([{ op: "make_joint", kind: "mortise_tenon", receiving: { object: 1 }, inserting: { object: 2 }, params: {} }]);
+    const said = h.statuses.at(-1)?.text ?? "";
+    expect(said).toContain("tenon 1/4 x 2 1/2 x 1 3/16 in");
+    expect(said).toContain("All 4 copies");
+    expect(h.sel).toEqual([]);
+  });
+
+  it("typed sizes make the last joint again in one undo step", async () => {
+    const h = fakeHost({ outcome: jointDone });
+    const t = new JointTool(h);
+    t.setMode("mortise_tenon");
+    await click(t, 2);
+    await click(t, 1);
+    await Promise.resolve();
+    t.onValue("3/8, 2");
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(h.ops.slice(1)).toEqual([
+      { op: "undo" },
+      { op: "make_joint", kind: "mortise_tenon", receiving: { object: 1 }, inserting: { object: 2 }, params: { thickness: 0.375 * 0.0254, width: 2 * 0.0254 } },
+    ]);
+  });
+
+  it("a dado clicked near an end keeps the point, and metric units ask for metric defaults", async () => {
+    const h = fakeHost({ outcome: { ...jointDone, joint: { ...note, kind: "dado" } } });
+    h._units = "mm";
+    const t = new JointTool(h);
+    t.setMode("dado");
+    await click(t, 2);
+    t.onEvent(ev("click", [0, 0, 0], { picked: { entity: face(1), point: [0.1, 0.2, 0.3], surface: null } as unknown as Picked }));
+    await Promise.resolve();
+    expect(h.ops).toEqual([{ op: "make_joint", kind: "dado", receiving: { object: 1 }, inserting: { object: 2 }, params: { near: [0.1, 0.2, 0.3], metric: true } }]);
+  });
+
+  it("typing before a joint is made says what to do", () => {
+    const h = fakeHost({ outcome: jointDone });
+    const t = new JointTool(h);
+    t.setMode("dado");
+    t.onValue("1/4");
+    expect(h.ops).toEqual([]);
+    expect(h.statuses.at(-1)).toEqual({ text: expect.stringContaining("Make the joint first"), error: true });
+  });
+});

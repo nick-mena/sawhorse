@@ -148,6 +148,9 @@ struct ObjectInfo<'a> {
     name: Option<&'a str>,
     tag: Option<&'a str>,
     material: Option<&'a str>,
+    /// ADR-0015: the joints the solid was cut for, left out when there are none.
+    #[serde(skip_serializing_if = "<[_]>::is_empty")]
+    joints: &'a [sawhorse_kernel::joinery::JointNote],
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -430,6 +433,7 @@ impl DocCore {
                     name: o.name(),
                     tag: o.tag(),
                     material: o.material(),
+                    joints: &o.part().joints,
                 })
                 .collect(),
             meshes: m

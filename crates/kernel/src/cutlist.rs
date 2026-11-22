@@ -174,6 +174,9 @@ pub struct PartAttrs {
     /// nesting (it stays listed, marked, so it can be taken back); absent: included.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub include: Option<bool>,
+    /// ADR-0015: the joints this part was cut for, as they were made. Absent: none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub joints: Vec<crate::joinery::JointNote>,
 }
 
 impl PartAttrs {
@@ -195,6 +198,14 @@ impl PartAttrs {
         if let Some(i) = self.include {
             h.tag("include");
             h.u64(u64::from(i));
+        }
+        // ADR-0015, hashed only when there are joints, for the same reason.
+        if !self.joints.is_empty() {
+            h.tag("joints");
+            h.u64(self.joints.len() as u64);
+            for j in &self.joints {
+                j.hash_into(h);
+            }
         }
     }
 
@@ -858,6 +869,14 @@ fn min_box(shape: &Shape, own: [DVec3; 3]) -> Option<PartBox> {
         center: center.to_array(),
         shaped,
     })
+}
+
+/// The minimal box of one solid as it sits in the world (the joinery reads boards this way).
+pub(crate) fn solid_box(o: &Object) -> Option<PartBox> {
+    min_box(
+        &Shape::of(&[o], &Xform::IDENTITY),
+        own_axes(&Xform::IDENTITY),
+    )
 }
 
 /// Unit columns of a placement's linear part (the part's own axes in the world).

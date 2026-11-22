@@ -340,6 +340,15 @@ pub enum Op {
         with: Vec<Item>,
         how: crate::parts::PartsOp,
     },
+    /// ADR-0015: a named joint. `inserting` (the rail, the shelf) goes into `receiving`
+    /// (the leg, the side); see [`crate::joinery`].
+    MakeJoint {
+        kind: crate::joinery::JointKind,
+        receiving: Item,
+        inserting: Item,
+        #[serde(default)]
+        params: crate::joinery::JointParams,
+    },
     /// Give one instance its own copy of its definition.
     MakeUnique {
         node: u64,
@@ -1076,6 +1085,14 @@ pub enum OpOutcome {
     PartsCombined {
         objects: Vec<u64>,
         unique: bool,
+    },
+    /// A joint was made (ADR-0015): what the clicked part now remembers of it (its id, kind
+    /// and the sizes it was made with), the solids that changed, and how many copies of the
+    /// clicked part's component it reached.
+    JointMade {
+        joint: crate::joinery::JointNote,
+        objects: Vec<u64>,
+        copies: u32,
     },
     /// A file was imported: the solids, non-solid meshes, groups and sketches it made, and
     /// plain-language notes (what was healed, what stayed a mesh and why, what was skipped).
@@ -2342,6 +2359,12 @@ impl Model {
             Op::MakeComponent { items, name } => self.make_component(items, name),
             Op::MakeUnique { node } => self.make_unique(*node),
             Op::CombineParts { target, with, how } => self.combine_parts(*target, with, *how),
+            Op::MakeJoint {
+                kind,
+                receiving,
+                inserting,
+                params,
+            } => self.make_joint(*kind, *receiving, *inserting, params),
             Op::Explode { node } => self.explode(*node),
             Op::DeleteNode { node } => self.delete_node(*node),
             Op::Rename { item, name } => self.rename(*item, name.as_deref()),

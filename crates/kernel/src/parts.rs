@@ -36,17 +36,17 @@ pub enum PartsOp {
 
 /// A part the op will change: its solids, and the node they are in when it was named as a
 /// group or component.
-struct Part {
-    solids: Vec<ObjectId>,
-    node: Option<NodeId>,
+pub(crate) struct Part {
+    pub(crate) solids: Vec<ObjectId>,
+    pub(crate) node: Option<NodeId>,
 }
 
 /// Two volumes that differ by less than arithmetic noise: the operand was not reached.
-fn same_volume(a: f64, b: f64) -> bool {
+pub(crate) fn same_volume(a: f64, b: f64) -> bool {
     (a - b).abs() <= (1e-12 * a.abs().max(b.abs())).max(AREA_EPS * POINT_MERGE)
 }
 
-fn boxes_meet(a: &Object, b: &Object) -> bool {
+pub(crate) fn boxes_meet(a: &Object, b: &Object) -> bool {
     let ((a0, a1), (b0, b1)) = (a.bounds(), b.bounds());
     a0.cmple(b1).all() && b0.cmple(a1).all()
 }
@@ -57,7 +57,7 @@ fn failed(e: BooleanError) -> KernelError {
 
 impl Model {
     /// The solids of a part that will be edited (see the module docs).
-    fn editable_part(&self, kids: &Kids, item: Item) -> Result<Part, KernelError> {
+    pub(crate) fn editable_part(&self, kids: &Kids, item: Item) -> Result<Part, KernelError> {
         match item {
             Item::Object(id) => {
                 let k = from_public::<ObjectId>(id);

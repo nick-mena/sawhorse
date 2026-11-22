@@ -27,6 +27,7 @@ pub mod faceops;
 pub mod hash;
 pub mod ids;
 pub mod intersect;
+pub mod joinery;
 pub mod limits;
 pub mod looks;
 pub mod mesh;

@@ -4,7 +4,7 @@
 import { useRef, useState, type KeyboardEvent } from "react";
 import type { EditResult } from "../kernel/client";
 import type { DocState, Entity, KernelOp } from "../kernel/types";
-import { attributesOf, positionOp, sizeOp } from "../lib/attributes";
+import { attributesOf, jointLine, positionOp, sizeOp } from "../lib/attributes";
 import { quoted } from "../lib/scope";
 import { formatLength, unitInfo, type UnitSystem } from "../lib/units";
 import { parseVcb } from "../lib/vcb";
@@ -165,6 +165,16 @@ export function AttributesPane({ state, selection, units, apply, onError }: Attr
           ))}
         </select>
       </div>
+      {a.joints.length ? (
+        <div className="attr-row attr-joints" data-testid="attr-joints">
+          <span>Joints</span>
+          <ul>
+            {a.joints.map((j) => (
+              <li key={`${j.note.id}:${j.note.role}`}>{jointLine(j, fmt)}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
       <p className="note">
         Sizes are in {unitInfo(units).name}. Position is the lowest corner; a new size stretches from it. Each change is one undo step.
       </p>

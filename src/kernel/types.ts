@@ -59,6 +59,8 @@ export type KernelOp =
   | { op: "make_component"; items: Item[]; name: string }
   | { op: "make_unique"; node: number }
   | { op: "combine_parts"; target: Item; with: Item[]; how: "add" | "cut" | "subtract" | "intersect" | "split" }
+  /** ADR-0015: a named joint; `inserting` (the rail, the shelf) goes into `receiving` (the leg, the side). */
+  | { op: "make_joint"; kind: JointKind; receiving: Item; inserting: Item; params?: JointParams }
   /** Loop Cut: a ring of edges around a solid where the plane through `origin` across `normal` crosses it. */
   | { op: "loop_cut"; object: number; origin: V3; normal: V3 }
   | { op: "explode"; node: number }
@@ -361,6 +363,7 @@ export type OpOutcome =
   | { kind: "component_created"; instance: number; definition: number }
   | { kind: "made_unique"; definition: number }
   | { kind: "parts_combined"; objects: number[]; unique: boolean }
+  | { kind: "joint_made"; joint: JointNote; objects: number[]; copies: number }
   | { kind: "exploded"; objects: number[]; nodes: number[] }
   | { kind: "node_deleted" }
   | { kind: "visibility_set" }
@@ -443,7 +446,7 @@ export interface DocState {
   dimensions: { id: number; a: V3; b: V3; offset: V3; length: number }[];
   tags: Record<string, boolean>;
   /** Name, tag and material of every object (same order as `objects`). */
-  object_info: { id: number; name: string | null; tag: string | null; material: string | null }[];
+  object_info: { id: number; name: string | null; tag: string | null; material: string | null; /** ADR-0015: absent when none. */ joints?: JointNote[] }[];
   /** Imported meshes that are not valid solids, and why. */
   meshes: { id: number; name: string; note: string; faces: number; lines: number; tag: string | null; visible: boolean }[];
   materials: MaterialInfo[];
@@ -1286,4 +1289,32 @@ export interface Nesting {
     by_nominal: { nominal: string; count: number; board_feet: number }[];
   };
   hash: string;
+}
+
+/** ADR-0015: the joints the library makes. */
+export type JointKind = "mortise_tenon" | "dado" | "rabbet" | "half_lap";
+
+/** What a joint is asked for, in metres; a missing size takes the kernel's default. */
+export interface JointParams {
+  thickness?: number;
+  width?: number;
+  depth?: number;
+  clearance?: number;
+  stop?: number;
+  near?: V3;
+  through?: boolean;
+  flip?: boolean;
+  metric?: boolean;
+}
+
+/** What a part remembers of a joint, sizes in whole nanometres. */
+export interface JointNote {
+  id: number;
+  kind: JointKind;
+  role: "receives" | "inserts";
+  thickness_nm: number;
+  width_nm: number;
+  depth_nm: number;
+  clearance_nm?: number;
+  through?: boolean;
 }

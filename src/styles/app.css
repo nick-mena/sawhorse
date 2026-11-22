@@ -669,3 +669,5 @@ button.chip:hover{border-color:var(--accent)}
 .attr-axis i{font-style:normal;font-weight:600;font-size:var(--type-micro);width:8px}
 .attr-axis.ax-x i{color:var(--axis-x)}.attr-axis.ax-y i{color:var(--axis-y)}.attr-axis.ax-z i{color:var(--axis-z)}
 .attr-mixed{color:var(--muted);font-size:var(--type-detail)}
+.attr-joints{align-items:start}
+.attr-joints>ul{grid-column:span 3;margin:0;padding:0;list-style:none;display:grid;gap:4px;line-height:1.35}

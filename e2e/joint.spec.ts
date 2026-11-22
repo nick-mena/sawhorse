@@ -2,7 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 // The Joint tool on the real kernel: a part cuts another and stays; Ctrl+click adds; a
 // refusal says why and changes nothing.
-import { at, box, clickAt, point, ready, selectAt, solids, type } from "./helpers";
+import { at, box, clickAt, hover, IN, point, ready, selectAt, solids, type } from "./helpers";
+import { buildShz, openShz } from "./shz";
 
 const hint = (page: Page) => page.locator("#hint");
 
@@ -65,4 +66,42 @@ test("Edit > Add Parts Together joins what is selected", async ({ page }) => {
   await page.getByRole("menuitem", { name: "Add Parts Together" }).click();
   await expect(hint(page)).toContainText("Added 2 parts into one");
   await expect(vp).toHaveAttribute("data-objects", "1");
+});
+
+// ADR-0015 step 1: a named joint on the real kernel. A 1-3/4 in leg and a 3/4 x 3 in rail
+// butted against it; Alt steps the tool to Mortise and Tenon, and the defaults cut a
+// 1/4 x 2-1/2 x 1-3/16 in tenon and its mortise, listed in the Attributes pane.
+test("Mortise and Tenon cuts both boards with woodworker's defaults and lists the joint", async ({ page }) => {
+  const rect = (apply: (op: object) => Record<string, unknown>, z: number, x0: number, x1: number, y0: number, y1: number, h: number) => {
+    const drawn = apply({ op: "draw", target: { on: "plane", origin: [0, 0, z * IN], normal: [0, 0, 1] }, points: [[x0 * IN, y0 * IN, z * IN], [x1 * IN, y0 * IN, z * IN], [x1 * IN, y1 * IN, z * IN], [x0 * IN, y1 * IN, z * IN]], closed: true });
+    apply({ op: "extrude", sketch: drawn.sketch, region: drawn.inside, distance: h * IN });
+  };
+  const shz = await buildShz((apply) => {
+    rect(apply, 0, 0, 1.75, 0, 1.75, 28);
+    rect(apply, 20, 1.75, 11.75, 0.5, 1.25, 3);
+  });
+  await openShz(page, shz, 2, "leg-and-rail.shz");
+  const vp = page.locator("main.vp");
+  await page.locator('[data-tool="joint"]').click();
+  await page.keyboard.press("Alt");
+  await expect(hint(page)).toContainText("tenon");
+  await selectAt(page, [6, 0.9, 23], "object");
+  await selectAt(page, [0.9, 0.9, 28], "object");
+  await expect(hint(page)).toContainText("Mortise and tenon");
+  await expect(vp).toHaveAttribute("data-objects", "2");
+  const tenon = 0.25 * 2.5 * 1.1875;
+  const [leg, rail] = await solids(page);
+  expect(leg.volume).toBeCloseTo(1.75 * 1.75 * 28 - tenon, 3);
+  expect(rail.volume).toBeCloseTo(0.75 * 3 * 10 + tenon, 3);
+  await page.keyboard.press("Space");
+  await hover(page, [0.9, 0.9, 28], /face|object/, 0, 0, "data-hover");
+  const [lx, ly] = await at(page, [0.9, 0.9, 28]);
+  await page.mouse.dblclick(lx, ly);
+  await expect(vp).toHaveAttribute("data-selection", "1");
+  await page.getByRole("tab", { name: "Attributes" }).click();
+  await expect(page.getByTestId("attr-joints")).toContainText("Mortise");
+  // One undo step puts both boards back.
+  await page.locator("main.vp").focus();
+  await page.keyboard.press("Control+z");
+  await expect.poll(async () => (await solids(page)).map((s) => Math.round(s.volume * 1000) / 1000)).toEqual([85.75, 22.5]);
 });

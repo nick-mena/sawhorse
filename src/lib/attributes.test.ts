@@ -1,7 +1,8 @@
 // The Attributes pane's facts and the ops its fields send.
 import { describe, expect, it } from "vitest";
 import type { DocState } from "../kernel/types";
-import { attributesOf, positionOp, sizeOp, type Attributes } from "./attributes";
+import { attributesOf, jointLine, positionOp, sizeOp, type Attributes } from "./attributes";
+import { formatLength } from "./units";
 
 const IN = 0.0254;
 const state = {
@@ -56,5 +57,29 @@ describe("Attributes", () => {
     for (const t of op.xform.translation) expect(t).toBeCloseTo(0);
     expect(sizeOp(of([1]), state, 2, 0)).toMatch(/more than zero/);
     expect(sizeOp(of([1]), state, 2, 3 * IN)).toBeNull();
+  });
+});
+
+describe("Attributes: joints (ADR-0015)", () => {
+  const mt = { id: 3, kind: "mortise_tenon", thickness_nm: 6_350_000, width_nm: 63_500_000, depth_nm: 30_162_500 } as const;
+  const withJoints = {
+    ...state,
+    graph: { nodes: [], objects: [], meshes: [], definitions: [], context: null },
+    object_info: [
+      { id: 1, name: "Seat rail", tag: null, material: "White oak", joints: [{ ...mt, role: "inserts" }] },
+      { id: 2, name: "Leg", tag: "Legs", material: "Walnut", joints: [{ ...mt, role: "receives" }] },
+    ],
+  } as unknown as DocState;
+
+  it("lists each joint once, with the part on its other side", () => {
+    const leg = attributesOf([{ kind: "object", object: 2 }], withJoints) as Attributes;
+    expect(leg.joints).toHaveLength(1);
+    expect(leg.joints[0].partner).toBe("Seat rail");
+    const fmt = (m: number) => formatLength(m, "frac-in");
+    expect(jointLine(leg.joints[0], fmt)).toBe("Mortise and tenon for Seat rail: mortise 1/4 x 2 1/2 x 1 3/16");
+    const rail = attributesOf([{ kind: "object", object: 1 }], withJoints) as Attributes;
+    expect(jointLine(rail.joints[0], fmt)).toBe("Mortise and tenon into Leg: tenon 1/4 x 2 1/2 x 1 3/16");
+    // Both selected: each side is listed, and neither is the other's "partner" outside the selection.
+    expect((attributesOf([1, 2].map((object) => ({ kind: "object" as const, object })), withJoints) as Attributes).joints.map((j) => j.partner)).toEqual([null, null]);
   });
 });

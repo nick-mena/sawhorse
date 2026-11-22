@@ -50,7 +50,7 @@ export const TOOL_GROUPS: ToolDef[][] = [
     { id: "follow", label: "Follow", key: "w", keyCap: "W", hint: "Select a path, then click a profile face to extrude it along the path.", vcb: null },
     { id: "loopcut", label: "Loop", key: "k", keyCap: "K", hint: "Point at a face near the edge to cut across, then click. Type 12 for 12 from the nearer end, or /4 to divide it.", vcb: "Distance" },
     // No default key: it is used far less often than the tools around it.
-    { id: "joint", label: "Joint", key: "", keyCap: "", hint: "Click the part that does the cutting, then each part to cut. The cutter stays. Ctrl+click adds into a part instead.", vcb: null },
+    { id: "joint", label: "Joint", key: "", keyCap: "", hint: "Click the part that does the cutting, then each part to cut. The cutter stays. Ctrl+click adds into a part instead. Tap Alt for mortise and tenon, dado, rabbet and half-lap.", vcb: null },
     { id: "solids", label: "Solids", key: "", keyCap: "", hint: "Union, Subtract, Intersect or Split: click a part, then the part to change. Tap Alt for the next mode.", vcb: null },
   ],
   [

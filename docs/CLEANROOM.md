@@ -145,3 +145,8 @@ Lane 1 (foundations, 2026-10-11): nothing from either project was opened or read
 - **Who:** Claude (Opus 5.5), the baseline review and the save and stability fixes.
 - **Read:** no source, tests or fixtures from hew3d/hew or hew3d/openskp.
 - **Other dependencies read for their APIs** (permissive licences, not copyleft): the `quick-xml` 0.42 sources in the cargo registry (`events/attributes.rs`, for the update), and the `tauri` 2.12 and `muda` 0.20 sources (the window permissions, and how the predefined Quit item behaves). Nothing was copied.
+
+### 2026-11-16 — feature survey and the joinery plan (ADR-0015): what was read
+- **Who:** Claude (Opus 5.5), a research session that surveyed similar tools and drafted `docs/adr/0015-joinery.md`. No code was written.
+- **Hew:** read only its public GitHub landing page README (https://github.com/hew3d/hew, as served on 2026-11-16) and its AlternativeTo listing, through a web summarizer, for a list of features. No source, tests, fixtures or docs beyond the README were opened, and nothing was cloned. Nothing from it informed ADR-0015: Hew lists no joinery. Ideas noted for later, not taken: Model Health and Make Solid, `.skp` export, session record and replay, and a phone viewer. Any of those, if built, cites this entry, and the builder should not be the session that read the README.
+- **Other projects read (permissive, or no code read):** BenchUp's README (github.com/BenchUp3D/benchup, MIT), the source of ADR-0015's joint list and linked-joint idea. Also the public pages of the FreeCAD Woodworking workbench, ShopPrentice, OpenCutList, Shapr3D, Plasticity, Mozaik, PolyBoard and Cabinet Vision. No source code from any of them was read.

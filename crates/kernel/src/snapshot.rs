@@ -584,6 +584,28 @@ fn check_snapshot(s: &Snapshot) -> Result<(), KernelError> {
         name_ok("a group or instance", n.name.as_deref())?;
         name_ok("a group or instance's tag", n.tag.as_deref())?;
     }
+    // ADR-0015: what a part remembers of its joints, counted like everything else a file says.
+    let joints = |p: &crate::cutlist::PartAttrs| {
+        l::count(
+            "joints on one part",
+            p.joints.len(),
+            crate::joinery::MAX_JOINTS_PER_PART,
+        )
+    };
+    for p in s
+        .objects
+        .iter()
+        .map(|o| &o.part)
+        .chain(s.nodes.iter().map(|n| &n.part))
+        .chain(s.definitions.iter().map(|d| &d.part))
+        .chain(
+            s.definitions
+                .iter()
+                .flat_map(|d| d.members.iter().map(|m| &m.part)),
+        )
+    {
+        joints(p)?;
+    }
     for d in &s.definitions {
         name_ok("a component", Some(&d.name))?;
         for mem in &d.members {

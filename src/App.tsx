@@ -56,7 +56,7 @@ import { RotateTool } from "./tools/rotate";
 import { ScaleTool } from "./tools/scale";
 import { OffsetTool } from "./tools/offset";
 import { FollowTool } from "./tools/follow";
-import { JointTool } from "./tools/joint";
+import { JOINT_MODES, JointTool, type JointMode } from "./tools/joint";
 import { ViewPanel } from "./components/ViewPanel";
 import { VIEW_GLYPHS } from "./components/glyphs";
 import { LoopCutTool } from "./tools/loopcut";
@@ -1413,6 +1413,19 @@ export function App() {
   );
   selectToolRef.current = selectTool;
 
+  // Tools > Cut With Selection and the joints (ADR-0015): the Joint tool's modes (Alt steps
+  // through them), as the Solids tool's are below.
+  const [jointMode, setJointMode] = useState<JointMode>("cut");
+  const jointTool = toolsRef.current.get("joint") as JointTool;
+  jointTool.onMode = setJointMode;
+  const pickJointMode = useCallback(
+    (m: JointMode) => {
+      if (toolIdRef.current !== "joint") selectTool("joint");
+      jointTool.setMode(m);
+    },
+    [selectTool, jointTool],
+  );
+
   // Tools > Union, Subtract, Intersect, Split: one tool, four modes (Alt steps through them).
   const [solidMode, setSolidMode] = useState<SolidMode>("union");
   const solidsTool = toolsRef.current.get("solids") as SolidsTool;
@@ -2716,7 +2729,7 @@ export function App() {
         },
         { label: "Explode", keys: menuKeys("explode"), disabled: !selection.some((x) => x.kind === "node"), onSelect: () => void explode(selection.flatMap((x) => (x.kind === "node" ? [x.node] : []))) },
         { label: "Add Parts Together", title: "The selected parts become one part, the first one selected; they must overlap or rest against each other", disabled: selItems.length < 2, onSelect: () => void addParts(selItems) },
-        { label: "Cut With Selection…", title: "The selected parts stay put and cut each part you click next, the way a tenon marks its mortise", disabled: !selItems.length, onSelect: () => selectTool("joint") },
+        { label: "Cut With Selection…", title: "The selected parts stay put and cut each part you click next, the way a tenon marks its mortise", disabled: !selItems.length, onSelect: () => pickJointMode("cut") },
         {
           label: "Explode Curve",
           title: "The selected circles, arcs, polygons and curves become plain edges, each segment its own again; one undo step",
@@ -2810,6 +2823,13 @@ export function App() {
           onSelect: () => pickSolidMode(m.id),
         })),
         "-",
+        ...JOINT_MODES.map((m) => ({
+          label: m.id === "cut" ? "Cut With Selection (Joint)" : m.name,
+          title: m.title,
+          checked: toolId === "joint" && jointMode === m.id,
+          onSelect: () => pickJointMode(m.id),
+        })),
+        "-",
         { label: "Section Plane", title: "Cut the model with a plane (no default key)", checked: toolId === "section", onSelect: () => selectTool("section") },
         { label: "CNC…", title: "Draw an outline with curves in 2D, over a reference image if you like, and bring it in as a part", onSelect: () => setCncOpen(true) },
       ],
@@ -2829,7 +2849,7 @@ export function App() {
       ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hasClip, paste, copySelection, shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, addParts, selectTool, pickSolidMode, solidMode, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
+    [hasClip, paste, copySelection, shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, addParts, selectTool, pickSolidMode, solidMode, pickJointMode, jointMode, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
   );
 
   const valueLabel = active?.valueLabel() ?? null;

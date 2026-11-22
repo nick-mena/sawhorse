@@ -276,6 +276,14 @@ Ctrl+click adds into a part instead of cutting it, and **Edit > Add Parts Togeth
 
 A cut that goes all the way across leaves separate parts. Clicking a component cuts only that copy, which becomes its own component. To change every copy, open the component and cut inside it, with a cutter that is inside it too. Each is one undo step.
 
+### Named joints
+
+Tap Alt with Joint to step from Cut With Selection to **Mortise and Tenon**, **Dado**, **Rabbet** and **Half-Lap** (they are on the Tools menu too). Put the two boards where they belong, touching or overlapping, select the board that goes in (the rail, the shelf), then click the board that takes it (the leg, the side). Both are cut in one undo step, and a rail that ran into the leg is trimmed back to its shoulder.
+
+The sizes start where a woodworker would: a tenon a third of the rail's thickness at the nearest chisel size, with shoulders as thick as the tenon all round, going 2/3 of the way into the leg; a dado a third of the side's thickness deep, a rabbet half. The status line says what was made. Type new sizes straight away: for a tenon its thickness, width and length (`3/8, 2, 1-1/4`; leave the end off to keep what is there), for the others one depth. A tenon as long as the leg is deep goes through. Click a dado near one end of the side and it stops short of the far edge.
+
+A joint on a component cuts every copy of it. A joint that can't be made (boards that don't meet, a tenon thicker than the rail, a rabbet away from the edge) is refused in words, and nothing changes. Select a jointed part to see its joints, and what each is joined to, in the Attributes pane.
+
 ## Solid tools: Union, Subtract, Intersect and Split
 
 **Tools > Union, Subtract, Intersect** and **Split** are one tool (Solids on the rail) in four modes; tap Alt to step to the next. Each works the way Joint does: click the part (or Shift+click the parts) to work with, then click the part to change. The status line names the step you are on.
