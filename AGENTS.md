@@ -65,6 +65,7 @@ bash scripts/cargo.sh clippy --workspace --all-targets -- -D warnings
 | `src/io` | Picking and saving files per host, `.skp` import |
 | `src/plugins`, `packages/plugin-api`, `plugins/` | Plugin host, public API, bundled samples |
 | `docs/adr` | Why things are the way they are; read the matching ADR before changing a design |
+| `docs/ROADMAP.md` | What to build next and in what order; check it before starting a feature, and update it when one is done |
 
 ## How to work
 
