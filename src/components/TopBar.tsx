@@ -1,6 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { BrandMark } from "./glyphs";
-import { VIEWS, type ViewId } from "../viewport/camera";
+import { useEffect, useRef, useState, type ReactElement } from "react";
 import { shortcutLabel } from "../lib/keys";
 
 // "Plugins" (lane 11) sits after Tools: commands from enabled plugins, and managing them.
@@ -22,9 +20,8 @@ export type MenuItem =
   | { label: string; items: MenuItem[]; disabled?: boolean };
 
 export interface TopBarProps {
-  /** The standard view the camera is on, or null after orbiting away. */
-  view: ViewId | null;
-  onView: (v: ViewId) => void;
+  /** Buttons for the side panel's panes, at the right (Maya's panel toggles). */
+  docks?: DockButton[];
   /** Credits on this device; null while the render service is not connected. */
   credits: number | null;
   /** Lane 15: the chip is shown only when renders are on (a service set and answering). */
@@ -88,7 +85,8 @@ function Entry({ item: it, sub, setSub, close }: { item: MenuItem; sub: string |
   );
 }
 
-export function TopBar({ view, onView, credits, showCredits = true, creditsState, creditsTitle, onCredits, menus, docName, docState }: TopBarProps) {
+/** A row of drop-down menus: the window's (File, Edit…) or a viewport panel's (View, Shading…). */
+export function MenuBar({ names, menus, label, prefix }: { names: string[]; menus?: Partial<Record<string, MenuItem[]>>; label: string; prefix?: string }) {
   const [open, setOpen] = useState<string | null>(null);
   const [sub, setSub] = useState<string | null>(null);
   const navRef = useRef<HTMLElement>(null);
@@ -118,35 +116,49 @@ export function TopBar({ view, onView, credits, showCredits = true, creditsState
   }, [open]);
 
   return (
+    <nav className="menu" aria-label={label} ref={navRef}>
+      {names.map((m) => {
+        const items = menus?.[m];
+        return (
+          <span key={m} style={{ position: "relative" }}>
+            <button
+              type="button"
+              aria-haspopup={items ? "menu" : undefined}
+              aria-expanded={items ? open === m : undefined}
+              // A second row of menus (the viewport's) says whose they are, so "View" here and
+              // the window's View menu are told apart by screen readers.
+              aria-label={prefix ? `${prefix} ${m}` : undefined}
+              onClick={() => items && setOpen(open === m ? null : m)}
+            >
+              {m}
+            </button>
+            {items && open === m ? (
+              <div className="drop" role="menu" aria-label={m}>
+                {items.map((it, i) => (
+                  <Entry key={i} item={it} sub={sub} setSub={setSub} close={closeMenu} />
+                ))}
+              </div>
+            ) : null}
+          </span>
+        );
+      })}
+    </nav>
+  );
+}
+
+/** A button in the top bar that brings a side-panel pane forward (or puts the panel away). */
+export interface DockButton {
+  id: string;
+  label: string;
+  glyph: ReactElement;
+  pressed: boolean;
+  onClick: () => void;
+}
+
+export function TopBar({ credits, showCredits = true, creditsState, creditsTitle, onCredits, menus, docName, docState, docks = [] }: TopBarProps) {
+  return (
     <header className="top">
-      <div className="brand" title="BenchCraft">
-        <BrandMark />
-        BenchCraft
-      </div>
-      <nav className="menu" aria-label="Menu" ref={navRef}>
-        {MENUS.map((m) => {
-          const items = menus?.[m];
-          return (
-            <span key={m} style={{ position: "relative" }}>
-              <button
-                type="button"
-                aria-haspopup={items ? "menu" : undefined}
-                aria-expanded={items ? open === m : undefined}
-                onClick={() => items && setOpen(open === m ? null : m)}
-              >
-                {m}
-              </button>
-              {items && open === m ? (
-                <div className="drop" role="menu" aria-label={m}>
-                  {items.map((it, i) => (
-                    <Entry key={i} item={it} sub={sub} setSub={setSub} close={closeMenu} />
-                  ))}
-                </div>
-              ) : null}
-            </span>
-          );
-        })}
-      </nav>
+      <MenuBar names={MENUS} menus={menus} label="Menu" />
       <div className="spacer"></div>
       {docName ? (
         <div className="doc-state" data-testid="doc-state" data-edited={docState === "Edited" || undefined}>
@@ -155,13 +167,17 @@ export function TopBar({ view, onView, credits, showCredits = true, creditsState
         </div>
       ) : null}
       <div className="spacer"></div>
-      <div className="views" role="group" aria-label="Views">
-        {VIEWS.map((v) => (
-          <button key={v.id} type="button" title={v.title} aria-pressed={view === v.id} onClick={() => onView(v.id)}>
-            {v.label}
-          </button>
-        ))}
-      </div>
+      {docks.length ? (
+        <div className="docks" role="group" aria-label="Panels">
+          {docks.map((d) => (
+            <button key={d.id} type="button" className="dock" aria-label={d.label} title={d.pressed ? `${d.label}: press again to put the panel away` : d.label} aria-pressed={d.pressed} data-dock={d.id} onClick={d.onClick}>
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                {d.glyph}
+              </svg>
+            </button>
+          ))}
+        </div>
+      ) : null}
       {showCredits ? (
       <button type="button" className="chip" title={creditsTitle ?? "Render credits on this device"} data-state={creditsState} onClick={onCredits}>
         Credits <b id="credits">{credits ?? "—"}</b>

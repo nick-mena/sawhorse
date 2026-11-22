@@ -57,6 +57,10 @@ import { ScaleTool } from "./tools/scale";
 import { OffsetTool } from "./tools/offset";
 import { FollowTool } from "./tools/follow";
 import { JointTool } from "./tools/joint";
+import { ViewPanel } from "./components/ViewPanel";
+import { VIEW_GLYPHS } from "./components/glyphs";
+import { LoopCutTool } from "./tools/loopcut";
+import { SOLID_MODES, SolidsTool, type SolidMode } from "./tools/solids";
 import { itemsOf } from "./lib/entities";
 import { LineTool } from "./tools/line";
 import { CircleTool } from "./tools/circle";
@@ -88,7 +92,7 @@ import { NothingToRenderError, renderPasses } from "./render/passes";
 import { PaintTool, REMOVE_HINT, type PaintContext } from "./tools/paint";
 import { REMOVE_PAINT, type ActiveRef } from "./components/MaterialsPane";
 import type { LibraryEntry, MaterialInfo, Shadows } from "./kernel/types";
-import { compactStyle, fullStyle, gridAfterScene, gridShown, materialNameFor, sniffImage, texturePathFor, toBase64, type FullStyle } from "./lib/looks";
+import { DEFAULT_SHADOWS, compactStyle, fullStyle, gridAfterScene, gridShown, materialNameFor, sniffImage, texturePathFor, toBase64, type FullStyle } from "./lib/looks";
 import { usePlugins } from "./plugins/usePlugins";
 import { pickFile as pickAnyFile } from "./io/files";
 import type { AppBridge } from "./plugins/manager";
@@ -180,6 +184,16 @@ function loadImportUnits(): ImportUnit {
 }
 
 /** "1 solid", "2 solids", "2 meshes", "3 sketches": words ending in s, x, sh or ch take "es". */
+/** The top bar's panel buttons, in the order of the panel's tabs. */
+const DOCKS: { id: PaneId; label: string; glyph: JSX.Element }[] = [
+  { id: "attributes", label: "Attributes", glyph: VIEW_GLYPHS.attributes },
+  { id: "outliner", label: "Outliner", glyph: VIEW_GLYPHS.outliner },
+  { id: "cutlist", label: "Cut list", glyph: VIEW_GLYPHS.cutlist },
+  { id: "materials", label: "Materials", glyph: VIEW_GLYPHS.materials },
+  { id: "styles", label: "Styles", glyph: VIEW_GLYPHS.styles },
+];
+const PANEL_PANES: { id: PaneId; label: string }[] = [...DOCKS.map(({ id, label }) => ({ id, label })), { id: "tags", label: "Tags" }];
+
 export const plural = (n: number, w: string) => `${n} ${n === 1 ? w : /(?:s|x|sh|ch)$/.test(w) ? `${w}es` : `${w}s`}`;
 
 /** One line for the status bar after an import or open. */
@@ -308,7 +322,11 @@ export function App() {
   const [focusTags, setFocusTags] = useState(0);
   const [importUnits, setImportUnits] = useState<ImportUnit>(loadImportUnits);
   // The cut list (lane 7): worked out by the kernel while its pane is open.
-  const [pane, setPane] = useState<PaneId>("outliner");
+  const [pane, setPane] = useState<PaneId>("attributes");
+  // The top bar's panel buttons: bring a pane forward, or put the panel away when its pane
+  // is already in front (Maya's panel toggles).
+  const [paneShow, setPaneShow] = useState<{ pane: PaneId; seq: number } | null>(null);
+  const [sideCollapsed, setSideCollapsed] = useState(false);
   // Materials and styles (lane 10): the library, the active material, swatch images, a live
   // shadows preview while a slider moves.
   const [library, setLibrary] = useState<LibraryEntry[]>([]);
@@ -1247,7 +1265,9 @@ export function App() {
       ["scale", new ScaleTool(host)],
       ["offset", new OffsetTool(host)],
       ["follow", new FollowTool(host)],
+      ["loopcut", new LoopCutTool(host)],
       ["joint", new JointTool(host)],
+      ["solids", new SolidsTool(host)],
       ["paint", new PaintTool(host, paintCtx)],
       ["section", new SectionTool(host)],
     ]);
@@ -1392,6 +1412,18 @@ export function App() {
     [defaultValue],
   );
   selectToolRef.current = selectTool;
+
+  // Tools > Union, Subtract, Intersect, Split: one tool, four modes (Alt steps through them).
+  const [solidMode, setSolidMode] = useState<SolidMode>("union");
+  const solidsTool = toolsRef.current.get("solids") as SolidsTool;
+  solidsTool.onMode = setSolidMode;
+  const pickSolidMode = useCallback(
+    (m: SolidMode) => {
+      if (toolIdRef.current !== "solids") selectTool("solids");
+      solidsTool.setMode(m);
+    },
+    [selectTool, solidsTool],
+  );
 
 
   /** A swatch image: a library texture (fetched when the Materials pane first shows it) or
@@ -2575,31 +2607,38 @@ export function App() {
   const labels = useMemo(() => [...annotations.labels, ...stamps, ...toolView.labels], [annotations, stamps, toolView.labels]);
 
   /** Switch one of the style's section settings (one undo step). */
+  /** One way to change the drawing style, for the View menu, the viewport bar and the
+   * Styles pane's switches: one op, one undo step. Changing only the grid keeps the preset
+   * (the grid is a view switch, not part of a look); anything else makes the style custom. */
+  const setStyle = useCallback(
+    (next: Partial<FullStyle>, what: string) => {
+      const s = fullStyle(live.current.scene?.state.style);
+      const onlyGrid = Object.keys(next).every((k) => k === "grid");
+      if (onlyGrid && next.grid === s.grid) return;
+      void apply({ op: "set_style", style: compactStyle({ ...s, ...(onlyGrid ? {} : { preset: null }), ...next }) }, () => `${what}.`);
+    },
+    [apply],
+  );
+
   const setSectionStyle = useCallback(
     (next: Partial<FullStyle>) => {
-      const s = fullStyle(live.current.scene?.state.style);
-      const style = compactStyle({ ...s, preset: null, ...next });
       const what =
         next.section_planes !== undefined
           ? `Section planes ${next.section_planes ? "shown" : "hidden"}`
           : next.section_cuts !== undefined
             ? `Section cuts ${next.section_cuts ? "on" : "off"}`
             : `Section fill ${next.section_fill ? "on" : "off"}`;
-      void apply({ op: "set_style", style }, () => `${what}.`);
+      setStyle(next, what);
     },
-    [apply],
+    [setStyle],
   );
 
   /** Lane 21 (issue #4): show or hide the ground grid (View > Grid, the Styles pane). It is
    * the style's `grid`, so it saves with the document and with each scene; one undo step.
    * The preset stays: the grid is a view switch, not part of a look. */
   const setGrid = useCallback(
-    (on: boolean) => {
-      const s = fullStyle(live.current.scene?.state.style);
-      if (s.grid === on) return;
-      void apply({ op: "set_style", style: compactStyle({ ...s, grid: on }) }, () => `Grid ${on ? "shown" : "hidden"}.`);
-    },
-    [apply],
+    (on: boolean) => setStyle({ grid: on }, `Grid ${on ? "shown" : "hidden"}`),
+    [setStyle],
   );
 
   // What the selection stands for, once per selection (the menus asked six times a draw).
@@ -2762,6 +2801,15 @@ export function App() {
       ],
       Plugins: plugins.menu,
       Tools: [
+        { label: "Loop Cut", keys: menuKeys("loopcut"), title: "Draw a ring of edges all the way around a part, so a band of it can be pushed or pulled on its own", checked: toolId === "loopcut", onSelect: () => selectTool("loopcut") },
+        "-",
+        ...SOLID_MODES.map((m) => ({
+          label: m.name,
+          title: m.title,
+          checked: toolId === "solids" && solidMode === m.id,
+          onSelect: () => pickSolidMode(m.id),
+        })),
+        "-",
         { label: "Section Plane", title: "Cut the model with a plane (no default key)", checked: toolId === "section", onSelect: () => selectTool("section") },
         { label: "CNC…", title: "Draw an outline with curves in 2D, over a reference image if you like, and bring it in as a part", onSelect: () => setCncOpen(true) },
       ],
@@ -2781,7 +2829,7 @@ export function App() {
       ],
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [hasClip, paste, copySelection, shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, addParts, selectTool, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
+    [hasClip, paste, copySelection, shortcutsVersion, st?.can_undo, st?.can_redo, st?.guides?.length, st?.meshes, st?.scenes, st?.graph, st?.style, toolId, apply, undo, redo, zoomExtents, projection, setView, selectAll, eraseSelection, selection, selItems, pendingRestore, restore, newDocument, openDialog, save, importDialog, importUnits, exportAs, exportSection, sectionAction, makeGroup, makeComponent, explode, addParts, selectTool, pickSolidMode, solidMode, explodeCurves, addScene, goScene, activeScene, plugins.menu, mode, setMode, scene?.sheets, exportSheets, setGrid, units, chooseUnits],
   );
 
   const valueLabel = active?.valueLabel() ?? null;
@@ -2888,8 +2936,15 @@ export function App() {
         />
       ) : null}
       <TopBar
-        view={camView}
-        onView={setView}
+        docks={DOCKS.map((d) => ({
+          ...d,
+          pressed: !sideCollapsed && pane === d.id,
+          onClick: () => {
+            if (!sideCollapsed && pane === d.id) return setSideCollapsed(true);
+            setSideCollapsed(false);
+            setPaneShow((x) => ({ pane: d.id, seq: (x?.seq ?? 0) + 1 }));
+          },
+        }))}
         credits={cs.connection === "connected" ? cs.credits : null}
         showCredits={renderOn}
         creditsState={cs.connection}
@@ -2926,6 +2981,33 @@ export function App() {
           docName={docName ? stem(docName) : "Untitled"}
         />
       ) : null}
+      {mode !== "sheets" ? (
+        <ViewPanel
+          view={camView}
+          onView={setView}
+          perspective={projection === "perspective"}
+          onPerspective={() => setProjection((x) => (x === "perspective" ? "parallel" : "perspective"))}
+          onExtents={zoomExtents}
+          extentsKeys={menuKeys("zoomExtents")}
+          style={st?.style ?? null}
+          onStyle={setStyle}
+          shadows={!!st?.shadows?.on}
+          onShadows={(on) => void apply({ op: "set_shadows", shadows: { ...(st?.shadows ?? DEFAULT_SHADOWS), on } }, () => (on ? "Shadows on." : "Shadows off."))}
+          stats={showStats}
+          onStats={() => toggleViewInfo("stats", showStats, setShowStats)}
+          legend={showLegend}
+          onLegend={() => toggleViewInfo("legend", showLegend, setShowLegend)}
+          onAddScene={addScene}
+          panes={PANEL_PANES}
+          pane={pane}
+          collapsed={sideCollapsed}
+          onPane={(id) => {
+            setSideCollapsed(false);
+            setPaneShow((x) => ({ pane: id as PaneId, seq: (x?.seq ?? 0) + 1 }));
+          }}
+          onCollapse={() => setSideCollapsed((c) => !c)}
+        />
+      ) : null}
       <Viewport
         mesh={scene?.mesh ?? null}
         units={units}
@@ -2956,6 +3038,9 @@ export function App() {
         }}
       />
       <SidePanel
+        show={paneShow}
+        collapsed={sideCollapsed}
+        attributes={{ state: st ?? null, selection, units, apply, onError: (text) => setMessage({ text, error: true }) }}
         credits={credits}
         renderOn={renderOn}
         capture={capture}

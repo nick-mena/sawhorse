@@ -47,25 +47,18 @@ export const TOOL_GLYPHS: Record<BuiltinToolId, ReactElement> = {
       <circle cx="3" cy="18" r="2" />
     </>
   ),
+  // A board seen end-on in perspective, with a ring cut around it.
+  loopcut: <path d="M3 9l6-4h12l-6 4z M3 9v10h12V9 M15 19l6-4V5 M9 9v10 M9 9l6-4" />,
   // A tenon's shoulders and tongue.
   joint: <path d="M3 6h9v4h9v4h-9v4H3z" />,
+  // Two overlapping squares, the overlap marked: what the solid tools work on.
+  solids: <path d="M3 3h12v12H3z M9 9h12v12H9z M9 12l3-3 M9 15l6-6 M12 15l3-3" />,
   tape: <path d="M3 15l12-12 6 6-12 12z M7 11l2 2M10 8l2 2M13 5l2 2" />,
   dim: <path d="M3 12h18M3 8v8M21 8v8" />,
   paint: <path d="M4 20c0-3 2-5 5-5l6-9 4 4-9 6c0 3-2 5-6 4z M12 8l4 4" />,
   // Lane 12: a plane seen at an angle, with the arrows that show the side it keeps.
   section: <path d="M5 8l10-4v12L5 20z M15 10h5 M18 8l2 2-2 2 M10 9v6" />,
 };
-
-/** BenchCraft's beagle, in profile: one filled shape (the ear's line and the muzzle cut out of it), so it takes the theme's colour. */
-const BEAGLE = "M0.43 22.01C0.43 21.99 0.55 21.50 0.70 20.92C0.95 19.98 1.57 17.40 1.74 16.58C1.78 16.41 1.82 16.26 1.82 16.25C1.83 16.24 1.97 16.35 2.12 16.49C3.94 18.10 5.76 19.05 7.33 19.22C9.81 19.49 11.75 17.48 11.61 14.80C11.55 13.55 11.21 12.48 10.32 10.71C9.46 8.98 9.15 7.91 9.09 6.47C9.08 5.96 9.06 5.81 9 5.72C8.79 5.37 8.24 5.41 8.04 5.80C7.93 6.02 7.99 7.16 8.15 7.97C8.39 9.14 8.69 9.93 9.52 11.57C10.73 13.94 10.83 15.93 9.81 17.19C8.99 18.21 7.60 18.40 5.98 17.72C4.54 17.12 2.68 15.70 1.49 14.29C0.40 13.01 0.05 12.36 0.01 11.56C-0.03 10.76 -0.03 10.75 1.46 8.07C2.63 5.96 2.65 5.93 2.96 5.62C3.13 5.45 3.34 5.25 3.43 5.18C3.52 5.11 3.68 4.90 3.82 4.68C4.25 3.96 4.98 3.30 5.76 2.90C7 2.26 8.22 2.02 10.26 2.02C12.58 2.02 14.23 2.41 15.56 3.27C16.28 3.73 16.51 3.99 16.74 4.63C17.03 5.40 17.44 5.85 18.07 6.07C18.26 6.14 22.15 7.02 23.04 7.20C23.74 7.35 24.07 7.76 24.03 8.47C23.98 9.25 23.50 11.24 23.19 11.97C22.32 13.97 20.53 15.17 18.13 15.39C17.09 15.48 16.57 15.66 15.97 16.12C14.77 17.04 13.88 19.19 13.64 21.74L13.62 22.04L7.02 22.04C2.90 22.04 0.43 22.03 0.43 22.01ZM16.37 14.63C16.85 14.45 17.37 14.34 17.97 14.29C18.86 14.21 19.45 14.06 20.05 13.76C21.34 13.12 22.20 11.98 22.55 10.42L22.58 10.25L22.34 10.13C21.95 9.94 21.47 9.60 21.21 9.34C20.77 8.90 20.65 8.50 20.85 8.07C20.92 7.93 20.93 7.86 20.90 7.85C20.87 7.84 20.23 7.70 19.48 7.54C18.11 7.24 17.69 7.12 17.33 6.94L17.14 6.85L17.16 6.95C17.18 7.01 17.19 7.25 17.19 7.49C17.19 8.57 16.77 9.34 15.71 10.24C14.92 10.92 14.60 11.48 14.49 12.41C14.37 13.34 14.64 14.12 15.21 14.51C15.62 14.79 15.85 14.81 16.37 14.63Z";
-
-export function BrandMark() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d={BEAGLE} fill="currentColor" fillRule="evenodd" />
-    </svg>
-  );
-}
 
 /** Small panel glyphs (Outliner, Tags, scene tabs): 16x16, stroked with currentColor. */
 export function PanelGlyph({ name }: { name: "eye" | "eye-off" | "lock" | "unlock" | "open" | "closed" | "plus" | "tag" | "trash" }) {
@@ -89,3 +82,20 @@ export function PanelGlyph({ name }: { name: "eye" | "eye-off" | "lock" | "unloc
 
 /** A plugin tool without its own icon: a puzzle piece (ours). */
 export const PLUGIN_GLYPH = <path d="M5 9h3a2 2 0 1 1 4 0h3v3a2 2 0 1 1 0 4v3h-3a2 2 0 1 0-4 0H5v-3a2 2 0 1 0 0-4z" />;
+
+/** The viewport bar's and the top bar's own glyphs (24 x 24, stroked with currentColor). */
+export const VIEW_GLYPHS = {
+  extents: <path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5 M9 9h6v6H9z" />,
+  shaded: <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5" fill="currentColor" fillOpacity=".18" />,
+  wire: <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5 M12 3v9 M4 16.5l8-4.5 M20 16.5L12 12" />,
+  xray: <path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5 M12 3v9" strokeDasharray="2 2" />,
+  shadows: <path d="M12 4a5 5 0 1 0 0 10a5 5 0 0 0 0-10z M4 20h16 M8 17h10" />,
+  grid: <path d="M3 8h18M3 16h18M8 3v18M16 3v18" />,
+  section: <path d="M5 8l10-4v12L5 20z M10 9v6" />,
+  stats: <path d="M5 19V11 M10 19V5 M15 19v-6 M20 19V8" />,
+  attributes: <path d="M5 6h14M5 12h14M5 18h14 M9 4v4M15 10v4M11 16v4" />,
+  outliner: <path d="M5 6h3 M10 6h9 M8 11h3 M13 11h6 M8 16h3 M13 16h6 M6 7v9" />,
+  cutlist: <path d="M5 4h14v16H5z M8 8h8M8 12h8M8 16h5" />,
+  materials: <path d="M12 3a9 9 0 1 0 0 18c1 0 2-1 1-2-1-2 1-3 3-3h2a3 3 0 0 0 3-3 9 9 0 0 0-9-10z M8 10h.01 M12 7h.01 M16 10h.01" />,
+  styles: <path d="M4 20l6-6 M14 4l6 6-8 8-6-6z" />,
+};

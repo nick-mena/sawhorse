@@ -6,7 +6,7 @@ Sawhorse is an alpha. This page covers what works today: looking around, drawing
 
 You will make a board, cut a dado across it, and set a shelf in the dado. Everything is keyboard and mouse; nothing needs a dialog.
 
-**Minute 0 to 1: look around.** The screen is the approved layout: menus and view buttons along the top, the tool rail on the left, the 3D view in the middle, a panel on the right, and the **Value Control Box** (VCB) at the bottom right. Middle-drag to orbit around the point under the cursor, right-drag (or Shift+middle-drag) to pan, and roll the wheel to zoom toward the cursor (see Navigating, below). The buttons Iso, Top, Front, Right and Persp jump to the standard views. Shift+Z fits everything in view. The red, green and blue lines are the X, Y and Z axes; their dashed halves are the negative sides. The grid follows your units: 1 in and 1 ft lines in inches, 10 mm and 100 mm lines in metric; View > Grid hides it.
+**Minute 0 to 1: look around.** The screen: menus along the top, with buttons for the side panel's panes at the right; the tool rail on the left; the 3D view in the middle with its own bar above it; the side panel on the right; and along the whole bottom, the help line with the **Value Control Box** (VCB) at its right end. Middle-drag to orbit around the point under the cursor, right-drag (or Shift+middle-drag) to pan, and roll the wheel to zoom toward the cursor (see Navigating, below). The view's bar has View, Shading, Show and Panels menus, the buttons Iso, Top, Front, Right and Persp that jump to the standard views, Zoom Extents, and one-click switches for shaded, wireframe and X-ray faces, shadows, the grid, section cuts and the scene stats. Shift+Z fits everything in view. The red, green and blue lines are the X, Y and Z axes; their dashed halves are the negative sides. The grid follows your units: 1 in and 1 ft lines in inches, 10 mm and 100 mm lines in metric; View > Grid hides it.
 
 **Units.** A new document is in fractional inches, and the status line at the bottom says so ("Units: fractional inches. Click to change."). To work in millimetres, click that sentence or the unit chip beside the Value Control Box (it reads `in`) and pick **Millimetres**; the same list is under **Edit > Units** (Millimetres, Centimetres, Metres, Decimal inches, Feet and inches, Fractional inches). The choice is kept for your next document, and a `.shz` remembers its own. A typed unit always wins over the document's (`457mm` in an inch document is 457 mm), so you never have to switch just for one value.
 
@@ -72,6 +72,7 @@ The view keeps a look-at point on the line of sight at the depth of whatever you
 | S | Scale | Drag a grip on the selection's box (or click it, move, click). Shift: uniform. Ctrl: about the centre. Works on sketch shapes too. | a factor (`2`, `0.5`, `-1`), three factors (`2,1,0.5`), or a size with a unit (`30in`) |
 | F | Offset | Click a face or region (or near selected edges), move inward or outward, click | a distance (negative goes the other way) |
 | W | Follow Me | Select the path first (edges, or a face for its edge), then click the profile | - |
+| K | Loop Cut | Point at a face near the edge to cut across; a ring previews all the way round the part. Click to cut. See [Loop Cut](#loop-cut-rings-around-a-part) | a distance from the nearer end of the edge; `/4` divides it into four. Typed straight after a cut, it moves that cut |
 | T | Tape | Click two points to measure; the line and its length stay until the next click or Esc. Click an edge, then move away from it, to place a parallel guide. Click an edge's midpoint, then move to one side, to place a guide square to the edge (tap Cmd or Ctrl to measure from the midpoint instead). | the offset, or a length that drops a guide point |
 | D | Dimension | Click two points (or one edge), then click where the dimension line goes | - |
 | B | Paint | Click a face to paint it with the active material; a closed group or component takes it as its default; Ctrl+click paints the whole solid; click something selected to paint the whole selection. Alt+click picks a material up. Double-click a textured face to move, turn or scale its texture with the handles. | - |
@@ -274,6 +275,29 @@ The **Joint** tool cuts a part with the shape of another. Model the tenon, move 
 Ctrl+click adds into a part instead of cutting it, and **Edit > Add Parts Together** does the same for two or more selected parts; they must overlap or rest flat against each other. The result keeps the name and place of the part you clicked (in Edit > Add Parts Together, the one selected first), and each side keeps its own paint.
 
 A cut that goes all the way across leaves separate parts. Clicking a component cuts only that copy, which becomes its own component. To change every copy, open the component and cut inside it, with a cutter that is inside it too. Each is one undo step.
+
+## Solid tools: Union, Subtract, Intersect and Split
+
+**Tools > Union, Subtract, Intersect** and **Split** are one tool (Solids on the rail) in four modes; tap Alt to step to the next. Each works the way Joint does: click the part (or Shift+click the parts) to work with, then click the part to change. The status line names the step you are on.
+
+- **Union** joins them into the part you click last, which keeps its name and place. They must overlap or rest flat against each other.
+- **Subtract** cuts them out of the part you click last and takes them away. (Joint is the one that leaves the cutter where it is.)
+- **Intersect** keeps only where the parts overlap, in the part you click last.
+- **Split** takes exactly two parts and leaves three: each without the other, and the overlap as a part of its own. A part wholly inside the other just hollows the outer one.
+
+Each is one undo step. A refusal says why ("those parts do not overlap") and keeps what you picked, so you can move a part and click again. The step-by-step lesson is in [the Solid tools tutorial](tutorials/solid-tools.md).
+
+## Loop Cut: rings around a part
+
+**Loop Cut (K)** draws a ring of edges all the way around a part, where a plane square to an edge crosses it. Point at a face near the edge you want to cut across: a blue ring shows where the cut would go, measured from the nearer end of that edge (the box shows how far). Click to cut, or type a distance and press Enter. `/3` divides the edge into three equal parts with two rings in one step. Type a value straight after a cut to move it.
+
+Each band between two rings is its own face on every side, so Push/Pull can raise a bead, step a shoulder or start a taper there. A loop cut cannot yet pass through a hole in a face (a through-mortise): make the loop cut first, then cut the hole. The step-by-step lesson is in [the Loop Cut tutorial](tutorials/loop-cut.md).
+
+## Attributes: the selection's numbers
+
+The **Attributes** tab (the first in the side panel, and the first button at the top right) shows what is selected: its name, where its box starts (Position: the lowest corner, along x, y and z) and its Size, with its material and tag. Type into any field and press Enter (or click away) to change it; Esc puts the field back. A new position moves the selection there; a new size stretches it from the lowest corner, which stays put. Each change is one undo step. With several parts selected, the numbers are for the box around them all.
+
+The buttons at the top right bring a pane forward: Attributes, Outliner, Cut list, Materials and Styles. Press the one already in front to put the side panel away and give the view the room; any of them brings it back. The viewport bar's Panels menu does the same.
 
 ## Tags
 

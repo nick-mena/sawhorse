@@ -30,11 +30,11 @@ describe("the Keyboard Shortcuts page", () => {
     open();
     listen("Line");
     expect(keyFor("Line").textContent).toBe("Press a key…");
-    fireEvent.keyDown(keyFor("Line"), { key: "k" });
-    expect(keyFor("Line").textContent).toBe("K");
-    expect(shortcutsFor("line")).toEqual(["K"]);
+    fireEvent.keyDown(keyFor("Line"), { key: "j" });
+    expect(keyFor("Line").textContent).toBe("J");
+    expect(shortcutsFor("line")).toEqual(["J"]);
     loadShortcuts();
-    expect(shortcutsFor("line")).toEqual(["K"]);
+    expect(shortcutsFor("line")).toEqual(["J"]);
   });
 
   it("waits through modifiers for the real key", () => {
@@ -52,8 +52,8 @@ describe("the Keyboard Shortcuts page", () => {
     fireEvent.keyDown(keyFor("Line"), { key: "5" });
     expect(screen.getByRole("alert").textContent).toMatch(/Measurements box/);
     expect(shortcutsFor("line")).toEqual(["L"]);
-    fireEvent.keyDown(keyFor("Line"), { key: "k" });
-    expect(shortcutsFor("line")).toEqual(["K"]);
+    fireEvent.keyDown(keyFor("Line"), { key: "j" });
+    expect(shortcutsFor("line")).toEqual(["J"]);
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

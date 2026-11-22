@@ -67,6 +67,15 @@ test("unsaved work comes back after a reload", async ({ page }) => {
   await expect(vp).toHaveAttribute("data-objects", "0");
   const hint = page.locator("#hint");
   await expect(hint).toContainText("Restore unsaved work? 1 solid, 3 steps");
+  // The buttons show whole: they sit beside the two-line clamp, not inside the box that
+  // clips it (WebKit, the desktop's engine, cut their bottoms off there).
+  for (const name of ["Restore", "Discard"]) {
+    const clipper = await hint.getByRole("button", { name }).evaluate((b) => {
+      for (let e = b.parentElement; e && e.tagName !== "FOOTER"; e = e.parentElement) if (getComputedStyle(e).overflow !== "visible") return e.className;
+      return null;
+    });
+    expect(clipper, `${name} is inside a box that clips it`).toBeNull();
+  }
   await hint.getByRole("button", { name: "Restore" }).click();
   await expect(vp).toHaveAttribute("data-objects", "1");
   await expect(vp).toHaveAttribute("data-watertight", "true");

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { App, describeImport, plural } from "./App";
 import { RENDER_URL_KEY } from "./credits/gate";
 import { TOOLS } from "./lib/tools";
@@ -36,9 +36,9 @@ describe("App shell", () => {
   it("shows every tool with its 2017-default key cap", () => {
     render(<App />);
     const caps = [...document.querySelectorAll(".tool kbd")].map((k) => k.textContent);
-    expect(caps).toEqual(["␣", "E", "L", "R", "C", "A", "P", "M", "Q", "S", "F", "W", "T", "D", "B"]);
+    expect(caps).toEqual(["␣", "E", "L", "R", "C", "A", "P", "M", "Q", "S", "F", "W", "K", "T", "D", "B"]);
     // Lane 12's Section Plane has no default key (SketchUp 2017 had none either).
-    expect(TOOLS).toHaveLength(17);
+    expect(TOOLS).toHaveLength(19);
     expect(TOOLS.find((t) => t.id === "section")?.key).toBe("");
     expect(document.querySelector('.tool[data-tool="section"] kbd')).toBeNull();
     expect(pressed("select")).toBe(true);
@@ -72,7 +72,7 @@ describe("App shell", () => {
     render(<App />);
     await screen.findByRole("tab", { name: "Render" });
     const tabs = screen.getAllByRole("tab").map((t) => t.getAttribute("aria-label") ?? t.textContent);
-    expect(tabs).toEqual(["Outliner", "Tags", "Cut list", "Materials", "Styles", "Render", "Plugins"]);
+    expect(tabs).toEqual(["Attributes", "Outliner", "Tags", "Cut list", "Materials", "Styles", "Render", "Plugins"]);
     expect(screen.getByText("Credits")).toBeTruthy();
     // No example content: an empty model has an empty Outliner, and Tags has its default.
     expect(screen.queryByText("Side L")).toBeNull();
@@ -100,7 +100,7 @@ describe("App shell", () => {
     vi.stubGlobal("fetch", () => Promise.reject(new TypeError("offline")));
     render(<App />);
     expect(screen.queryByText("Credits")).toBeNull();
-    expect(screen.getAllByRole("tab").map((t) => t.getAttribute("aria-label") ?? t.textContent)).toEqual(["Outliner", "Tags", "Cut list", "Materials", "Styles", "Plugins"]);
+    expect(screen.getAllByRole("tab").map((t) => t.getAttribute("aria-label") ?? t.textContent)).toEqual(["Attributes", "Outliner", "Tags", "Cut list", "Materials", "Styles", "Plugins"]);
     // Edit > Settings…
     fireEvent.click(screen.getByRole("button", { name: "Edit" }));
     fireEvent.click(screen.getByRole("menuitem", { name: /Settings/ }));
@@ -188,7 +188,8 @@ describe("App shell", () => {
     expect(screen.getByTestId("materials")).toBeTruthy();
     expect(screen.getByText("No material")).toBeTruthy();
     fireEvent.click(screen.getByRole("tab", { name: "Styles" }));
-    expect(screen.getAllByRole("button", { name: /BenchCraft|Shop drawing|Shaded|X-ray|Clay|Outdoors/ })).toHaveLength(6);
+    // The style presets, in the Styles pane (the viewport bar has Shaded and X-ray switches too).
+    expect(within(document.getElementById("pane-styles")!).getAllByRole("button", { name: /BenchCraft|Shop drawing|Shaded|X-ray|Clay|Outdoors/ })).toHaveLength(6);
     expect(screen.getByLabelText("Time")).toBeTruthy();
   });
 

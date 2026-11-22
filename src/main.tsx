@@ -5,7 +5,6 @@ import "@fontsource/open-sans/400.css";
 import "@fontsource/open-sans/500.css";
 import "@fontsource/open-sans/600.css";
 // The name in the top bar only: Latin letters at one weight keep it small.
-import "@fontsource/fraunces/latin-600.css";
 import "@fontsource/noto-sans-mono/400.css";
 import "@fontsource/noto-sans-mono/500.css";
 import "./styles/tokens.css";

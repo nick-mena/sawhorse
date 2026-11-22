@@ -17,6 +17,8 @@ async function dblclickAt(page: Page, p: [number, number, number], kind: string)
 
 test("Ctrl+G groups; a click selects the group; double-click opens it, Esc closes it; undo returns inside", async ({ page }) => {
   await ready(page);
+  // Attributes is the pane in front; the Outliner is a tab away.
+  await page.getByRole("tab", { name: "Outliner" }).click();
   await box(page);
   await page.keyboard.press("Space");
   await page.keyboard.press("Control+a");
@@ -61,6 +63,8 @@ test("Ctrl+G groups; a click selects the group; double-click opens it, Esc close
 
 test("a component's copies are instances: an edit inside one changes them all; Make Unique forks", async ({ page }) => {
   const vp = await ready(page);
+  // Attributes is the pane in front; the Outliner is a tab away.
+  await page.getByRole("tab", { name: "Outliner" }).click();
   await box(page, "2,10", "20");
   await page.keyboard.press("Space");
   await page.keyboard.press("Control+a");
@@ -167,6 +171,8 @@ test("tags hide and show; scenes save the view and the tags; the Outliner's eye 
 
 test("hiding what is selected drops it from the selection, so Delete cannot erase it; renaming starts with the name selected", async ({ page }) => {
   const vp = await ready(page);
+  // Attributes is the pane in front; the Outliner is a tab away.
+  await page.getByRole("tab", { name: "Outliner" }).click();
   await box(page);
   await page.keyboard.press("Space");
   await selectAt(page, [6, 6, 6], "face");

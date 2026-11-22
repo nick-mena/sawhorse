@@ -15,12 +15,12 @@ const rekey = async (page: Page, name: string, key: string) => {
 test("a changed tool key works at once, shows in the rail, frees the old key and survives a reload", async ({ page }) => {
   await ready(page);
   await openPage(page);
-  await rekey(page, "Line", "k");
+  await rekey(page, "Line", "j");
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Keyboard Shortcuts" })).toHaveCount(0);
-  await expect(page.locator('[data-tool="line"] kbd')).toHaveText("K");
+  await expect(page.locator('[data-tool="line"] kbd')).toHaveText("J");
 
-  await page.keyboard.press("k");
+  await page.keyboard.press("j");
   await expect(active(page)).toHaveAttribute("data-tool", "line");
   await page.keyboard.press("Space");
   await expect(active(page)).toHaveAttribute("data-tool", "select");
@@ -30,7 +30,7 @@ test("a changed tool key works at once, shows in the rail, frees the old key and
 
   await page.reload();
   await ready(page);
-  await expect(page.locator('[data-tool="line"] kbd')).toHaveText("K");
+  await expect(page.locator('[data-tool="line"] kbd')).toHaveText("J");
   await openPage(page);
   await page.getByRole("button", { name: "Reset Line" }).click();
   await page.keyboard.press("Escape");

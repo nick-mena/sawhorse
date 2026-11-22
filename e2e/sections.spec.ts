@@ -36,6 +36,8 @@ test("cut the bookshelf with a section plane, reverse it, switch the style, keep
   // The cut list's bookshelf, without its hidden shelf and mirrored side copy.
   const shz = await goldenShz("cutlist", [], (o) => o.op !== "set_hidden" && !(o.op === "copy" && (o as unknown as { xform: { linear: number[][] } }).xform.linear[0][0] < 0));
   await openShz(page, shz, 9, "bookshelf.shz");
+  // Attributes is the pane in front; the Outliner is a tab away.
+  await page.getByRole("tab", { name: "Outliner" }).click();
   await page.getByRole("button", { name: "Iso", exact: true }).click();
   await page.keyboard.press("Shift+Z");
   // The left side's outer face, before the cut.

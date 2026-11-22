@@ -16,7 +16,7 @@ function bar(onAsk = vi.fn()) {
       { label: "Manage Plugins…", onSelect: () => {} },
     ],
   };
-  render(<TopBar view={null} onView={() => {}} credits={null} menus={menus} />);
+  render(<TopBar credits={null} menus={menus} />);
   fireEvent.click(screen.getByRole("button", { name: "Plugins" }));
   return { onAsk, entry: (name: string) => screen.getByRole("menuitem", { name }) };
 }

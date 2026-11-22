@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { at, box, clickAt, hover, ready, type V3 } from "./helpers";
-import { goldenPanelWidth, MAX_BAD, MAX_MEAN, perceptual } from "./perceptual";
+import { goldenCanvas, goldenPanelWidth, MAX_BAD, MAX_MEAN, perceptual } from "./perceptual";
 
 // Materials, paint, texture positioning, styles and shadows (lane 10) through the browser
 // build: the library, the Paint tool (B) with Alt+click sampling, the texture handles, the
@@ -142,12 +142,13 @@ test("a painted cabinet renders like its golden image", async ({ page }) => {
   const doc = mod.document_replay(JSON.stringify(ops));
   const shz: Uint8Array = doc.save_shz("frac-in", new Uint8Array());
   doc.free();
-  // The size that gives the golden's 644 x 637 canvas under the current rail and status bar.
+  // About the goldens' 644 x 637 canvas; goldenCanvas trims it exactly once the page is up.
   await page.setViewportSize({ width: 989, height: 726 });
   await goldenPanelWidth(page);
   await page.goto("/?io=basic&theme=light&autosave=0");
   await expect(page.locator("main.vp")).toHaveAttribute("data-kernel", "ready", { timeout: 15_000 });
   await page.addStyleTag({ content: ".vp .hud,.vp .tip,.vp .axes,.vp .legend,.import-report,.drop-hint{visibility:hidden!important}.scenes{display:none!important}" });
+  await goldenCanvas(page);
   await page.getByTestId("file-input").setInputFiles({ name: "painted.shz", mimeType: "application/vnd.sawhorse.shz", buffer: Buffer.from(shz) });
   await expect(page.locator("main.vp")).toHaveAttribute("data-objects", "4", { timeout: 15_000 });
   await page.getByRole("button", { name: "Iso", exact: true }).click();

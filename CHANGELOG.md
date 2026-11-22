@@ -4,6 +4,16 @@ All notable changes to Sawhorse are recorded here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Added (macOS fork, 2026-11-12)
+- Loop Cut (K): a ring of edges all the way around a part, square to the edge you point at, previewed before you click. Type a distance from the nearer end, `/3` to divide the edge evenly, or a value straight after a cut to move it. Each band between rings can then be pushed or pulled on its own. One undo step; a cut through a hole in a face is refused in words.
+- Solid tools: Tools > Union, Subtract, Intersect and Split (Solids on the rail; Alt steps through them). Subtract takes the cutter away, Intersect keeps only the overlap, and Split leaves three parts. Each is one undo step and refuses in words.
+- Tutorials for both: docs/tutorials/loop-cut.md and docs/tutorials/solid-tools.md.
+- A layout closer to Maya's. The 3D view has its own bar: View, Shading, Show and Panels menus, the standard views (moved down from the top bar), Zoom Extents, and one-click switches for shaded, wireframe and X-ray faces, shadows, the grid, section cuts and the scene stats. The top bar has buttons for the side panel's panes at the right (press the one in front to put the panel away) and no logo, so the menus start at the left edge. The help line and value box run the full width of the window.
+- Attributes, the first tab of the side panel: the selection's name, position and size, material and tag, typed straight into fields, each change one undo step (Maya's Channel Box idea).
+
+### Fixed (macOS fork, 2026-11-12)
+- The status line's buttons (Restore and Discard, Units) are no longer cut off at the bottom in the desktop app: only the words are held to two lines, and the buttons sit beside them.
+
 ### Added (macOS fork, 2026-11-10)
 
 - **CNC (Tools > CNC…): draw a part flat, with curves, and bring it into the model.** The workspace has a pen with curve handles, point editing, rectangles and circles, holes, mirror drawing about a center line, and a reference image you can scale to real size. Set the stock thickness, choose whether the part lies flat or stands up, and Bring In: it follows the cursor until you click where it goes, and its curved walls are smooth. The drawing is saved with the model, so you can reopen it and bring in another part. Bringing in again makes a new part and leaves the earlier one alone. Limits are in docs/LIMITS.md.
@@ -18,7 +28,7 @@ All notable changes to Sawhorse are recorded here. The format follows [Keep a Ch
 
 ### Changed (macOS fork, 2026-11-12)
 
-- **The app is now called BenchCraft, with a new icon.** The window, menus, file pickers, exported PDFs and drawings say BenchCraft. Documents are still `.shz`, and settings, the feedback log and saved styles carry over (the bundle identifier is unchanged). The top bar shows a beagle mark beside the name, set in Fraunces semibold (bundled, OFL).
+- **The app is now called BenchCraft, with a new icon.** The window, menus, file pickers, exported PDFs and drawings say BenchCraft. Documents are still `.shz`, and settings, the feedback log and saved styles carry over (the bundle identifier is unchanged). The app icon is a beagle; the top bar carries no logo, so the menus start at the left edge and the window's title bar says BenchCraft.
 
 ### Fixed (CNC testing, macOS fork, 2026-11-11)
 

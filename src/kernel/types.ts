@@ -58,7 +58,9 @@ export type KernelOp =
   | { op: "make_group"; items: Item[]; name?: string | null }
   | { op: "make_component"; items: Item[]; name: string }
   | { op: "make_unique"; node: number }
-  | { op: "combine_parts"; target: Item; with: Item[]; how: "add" | "cut" }
+  | { op: "combine_parts"; target: Item; with: Item[]; how: "add" | "cut" | "subtract" | "intersect" | "split" }
+  /** Loop Cut: a ring of edges around a solid where the plane through `origin` across `normal` crosses it. */
+  | { op: "loop_cut"; object: number; origin: V3; normal: V3 }
   | { op: "explode"; node: number }
   | { op: "delete_node"; node: number }
   | { op: "rename"; item: Item; name: string | null }

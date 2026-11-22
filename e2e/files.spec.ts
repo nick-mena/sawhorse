@@ -248,6 +248,8 @@ test("drag and drop: an SVG becomes sketch regions on the ground", async ({ page
 
 test("a SketchUp file imports through openskp: the named Top and the Leg's instances as components", async ({ page }) => {
   const vp = await ready(page);
+  // Attributes is the pane in front; the Outliner is a tab away.
+  await page.getByRole("tab", { name: "Outliner" }).click();
   const bytes = Buffer.from(FAMILIES.table(rng(7)).toBytes());
   await pick(page, "table.skp", bytes);
   await expect(page.getByTestId("import-report")).toContainText("Imported table.skp: 5 solids", { timeout: 15_000 });

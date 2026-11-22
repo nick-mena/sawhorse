@@ -67,7 +67,11 @@ export const ValueBar = forwardRef<HTMLInputElement, ValueBarProps>(function Val
   return (
     <footer className="vcb">
       <div className={message?.error ? "hint err" : "hint"} id="hint" role="status" aria-live="polite" title={platformText(message ? message.text : tool.hint)}>
-        <b>{message?.error ? "Can't do that." : `${tool.label}.`}</b> {platformText(message ? message.text : tool.hint)}
+        {/* Only the words are clamped to two lines; the buttons sit beside them, whole (a
+            clamp clips what is inside it, and WebKit cut the buttons' bottoms off). */}
+        <span className="hint-text">
+          <b>{message?.error ? "Can't do that." : `${tool.label}.`}</b> {platformText(message ? message.text : tool.hint)}
+        </span>
         {message?.actions?.map((a) => (
           <button key={a.label} type="button" className="hint-action" onClick={a.run}>
             {a.label}

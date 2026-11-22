@@ -11,7 +11,7 @@ import { solidName } from "../lib/names";
 import { describeNode, graphOf, scopeEntity } from "../lib/scope";
 import { Tool, type ToolEvent } from "./tool";
 
-const sameItem = (a: Item, b: Item) => ("node" in a && "node" in b && a.node === b.node) || ("object" in a && "object" in b && a.object === b.object);
+export const sameItem = (a: Item, b: Item) => ("node" in a && "node" in b && a.node === b.node) || ("object" in a && "object" in b && a.object === b.object);
 
 /** The whole part an entity belongs to: a face or an edge stands for its solid. */
 export function partOf(e: Entity | null): Entity | null {
@@ -21,7 +21,7 @@ export function partOf(e: Entity | null): Entity | null {
   return object === null ? null : { kind: "object", object };
 }
 
-const itemOf = (part: Entity): Item => (part.kind === "node" ? { node: part.node } : { object: (part as { object: number }).object });
+export const itemOf = (part: Entity): Item => (part.kind === "node" ? { node: part.node } : { object: (part as { object: number }).object });
 
 export class JointTool extends Tool {
   readonly id = "joint" as const;

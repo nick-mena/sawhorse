@@ -79,3 +79,20 @@ export async function goldenPanelWidth(page: Page) {
     }
   });
 }
+
+/** Size the window so the 3D canvas is exactly the goldens' 644 x 637, whatever bars sit
+ * around it now (the viewport bar, a top bar with no logo): the goldens are of the model,
+ * not of the chrome, so the chrome changing must not change what they compare. */
+export async function goldenCanvas(page: Page) {
+  for (let k = 0; k < 4; k++) {
+    const b = await page.locator("#cv").boundingBox();
+    if (!b) throw new Error("no canvas");
+    const dw = 644 - Math.round(b.width);
+    const dh = 637 - Math.round(b.height);
+    if (!dw && !dh) return;
+    const v = page.viewportSize()!;
+    await page.setViewportSize({ width: v.width + dw, height: v.height + dh });
+    await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
+  }
+  throw new Error("the canvas did not settle at 644 x 637");
+}

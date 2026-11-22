@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from "react";
+import { AttributesPane, type AttributesPaneProps } from "./AttributesPane";
 import { CutListPane, type CutListPaneProps } from "./CutListPane";
 import type { CreditsHandle } from "../credits/useCredits";
 import type { RenderPasses } from "../render/passes";
@@ -14,7 +15,7 @@ import { TagsPane, type TagsPaneProps } from "./TagsPane";
 // Tags panes (lane 5), the Cut list (lane 7) and the Render pane (lane 8) are all live;
 // Materials and Styles (with the sun) came in lane 10.
 
-export type PaneId = "outliner" | "tags" | "cutlist" | "materials" | "styles" | "render" | "plugins";
+export type PaneId = "attributes" | "outliner" | "tags" | "cutlist" | "materials" | "styles" | "render" | "plugins";
 
 /** Lane 20b: the panel's usual width (px), 360 (the mock's 300 left the Cut list's Part
  * column about 35 px); wider or narrower by dragging its left edge (or the arrow keys on it),
@@ -61,7 +62,9 @@ function saveSideWidth(w: number): void {
 const windowWidth = () => (typeof window === "undefined" ? 1440 : window.innerWidth);
 
 // Plugins (lane 11) is a glyph tab at the end, so the named tabs keep the mock's widths.
+// Attributes comes first: the selection's numbers, the pane looked at most while modelling.
 const TABS: { id: PaneId; label: string; glyph?: boolean }[] = [
+  { id: "attributes", label: "Attributes" },
   { id: "outliner", label: "Outliner" },
   { id: "tags", label: "Tags" },
   { id: "cutlist", label: "Cut list" },
@@ -79,6 +82,7 @@ export interface SidePanelProps {
   capture: () => Promise<RenderPasses>;
   /** Bumped to bring the Render pane forward (the Credits chip). */
   focusRender?: number;
+  attributes: AttributesPaneProps;
   outliner: OutlinerProps;
   tags: TagsPaneProps;
   /** Bumped to bring the Tags pane forward (a tag just created from elsewhere). */
@@ -93,10 +97,17 @@ export interface SidePanelProps {
   focusPlugins?: number;
   /** The pane shown changed (the viewport draws grain arrows while the Cut list is open). */
   onPane?: (pane: PaneId) => void;
+  /** Bring a pane forward (the top bar's panel buttons); `seq` bumps for each press. */
+  show?: { pane: PaneId; seq: number } | null;
+  /** The whole panel is put away (a panel button pressed again); the model takes the room. */
+  collapsed?: boolean;
 }
 
-export function SidePanel({ credits, renderOn = true, capture, focusRender = 0, outliner, tags, focusTags = 0, cutlist, materials, styles, focusMaterials = 0, plugins, focusPlugins = 0, onPane }: SidePanelProps) {
-  const [pane, setPane] = useState<PaneId>("outliner");
+export function SidePanel({ credits, renderOn = true, capture, focusRender = 0, attributes, outliner, tags, focusTags = 0, cutlist, materials, styles, focusMaterials = 0, plugins, focusPlugins = 0, onPane, show = null, collapsed = false }: SidePanelProps) {
+  const [pane, setPane] = useState<PaneId>("attributes");
+  useEffect(() => {
+    if (show) setPane(show.pane);
+  }, [show]);
   // Lane 20: the panel's width, dragged on its left edge or set by the Cut list's Wide.
   const [width, setWidthState] = useState(() => clampSideWidth(storedSideWidth(), windowWidth()));
   const setWidth = useCallback((w: number) => {
@@ -150,7 +161,7 @@ export function SidePanel({ credits, renderOn = true, capture, focusRender = 0, 
     if (focusRender > 0 && renderOn) setPane("render");
   }, [focusRender, renderOn]);
   useEffect(() => {
-    if (!renderOn && pane === "render") setPane("outliner");
+    if (!renderOn && pane === "render") setPane("attributes");
   }, [renderOn, pane]);
   useEffect(() => {
     if (focusTags > 0) setPane("tags");
@@ -166,6 +177,7 @@ export function SidePanel({ credits, renderOn = true, capture, focusRender = 0, 
     <aside
       className="side"
       aria-label="Panels"
+      hidden={collapsed}
       style={{ "--side-w": `${width}px` } as CSSProperties}
       // Lane 15: a select picked with the mouse gives the keyboard back to the model, so the
       // next "r" or "p" picks a tool instead of jumping the select to an option. (A select
@@ -230,6 +242,13 @@ export function SidePanel({ credits, renderOn = true, capture, focusRender = 0, 
           </button>
         ))}
       </div>
+
+      <section className="pane" id="pane-attributes" role="tabpanel" aria-labelledby="tab-attributes" hidden={pane !== "attributes"}>
+        <h3>
+          Attributes <small>what is selected</small>
+        </h3>
+        <AttributesPane {...attributes} />
+      </section>
 
       <section className="pane" id="pane-outliner" role="tabpanel" aria-labelledby="tab-outliner" hidden={pane !== "outliner"}>
         <h3>
