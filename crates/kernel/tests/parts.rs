@@ -476,3 +476,158 @@ fn the_op_replays_to_the_same_model() {
     let again = sawhorse_kernel::Model::replay(d.log()).unwrap();
     assert_eq!(again.hash(), d.model().hash());
 }
+
+fn combine(target: u64, with: &[u64], how: PartsOp) -> Op {
+    Op::CombineParts {
+        target: Item::Object(target),
+        with: with.iter().map(|&o| Item::Object(o)).collect(),
+        how,
+    }
+}
+
+#[test]
+fn subtract_cuts_and_takes_the_cutter_away_in_one_step() {
+    let mut d = Document::new();
+    let leg = block(&mut d, [0.0; 3], [0.1, 0.1, 0.5]);
+    let tenon = block(&mut d, [0.03, 0.03, 0.3], [0.04, 0.04, 0.3]);
+    let out = ok(&mut d, combine(leg, &[tenon], PartsOp::Subtract));
+    assert_eq!(
+        out,
+        OpOutcome::PartsCombined {
+            objects: vec![leg],
+            unique: false
+        }
+    );
+    near(volume(&d, leg), 0.1 * 0.1 * 0.5 - 0.04 * 0.04 * 0.2);
+    assert!(d.model().object(tenon).is_none(), "the cutter is gone");
+    d.undo().expect("one undo step");
+    near(volume(&d, leg), 0.1 * 0.1 * 0.5);
+    assert!(d.model().object(tenon).is_some());
+}
+
+#[test]
+fn intersect_keeps_only_where_the_parts_overlap() {
+    let mut d = Document::new();
+    let a = block(&mut d, [0.0; 3], [0.2, 0.2, 0.2]);
+    let b = block(&mut d, [0.1, 0.1, 0.1], [0.2, 0.2, 0.2]);
+    let out = ok(&mut d, combine(a, &[b], PartsOp::Intersect));
+    assert_eq!(
+        out,
+        OpOutcome::PartsCombined {
+            objects: vec![a],
+            unique: false
+        }
+    );
+    near(volume(&d, a), 0.1 * 0.1 * 0.1);
+    assert!(d.model().object(b).is_none());
+    d.undo().expect("one undo step");
+    near(volume(&d, a), 0.008);
+    near(volume(&d, b), 0.008);
+}
+
+#[test]
+fn split_leaves_three_parts_where_two_overlapped() {
+    let mut d = Document::new();
+    let a = block(&mut d, [0.0; 3], [0.2, 0.2, 0.2]);
+    let b = block(&mut d, [0.1, 0.1, 0.1], [0.2, 0.2, 0.2]);
+    let out = ok(&mut d, combine(a, &[b], PartsOp::Split));
+    let OpOutcome::PartsCombined { objects, .. } = out else {
+        panic!("{out:?}");
+    };
+    assert_eq!(objects.len(), 3, "{objects:?}");
+    assert_eq!(&objects[..2], &[a, b]);
+    near(volume(&d, a), 0.008 - 0.001);
+    near(volume(&d, b), 0.008 - 0.001);
+    near(volume(&d, objects[2]), 0.001);
+    d.undo().expect("one undo step");
+    assert_eq!(d.model().objects().len(), 2);
+}
+
+#[test]
+fn split_of_a_part_inside_another_hollows_the_outer_one() {
+    let mut d = Document::new();
+    let outer = block(&mut d, [0.0; 3], [0.3, 0.3, 0.3]);
+    let inner = block(&mut d, [0.1, 0.1, 0.1], [0.1, 0.1, 0.1]);
+    let out = ok(&mut d, combine(outer, &[inner], PartsOp::Split));
+    let OpOutcome::PartsCombined { objects, .. } = out else {
+        panic!("{out:?}");
+    };
+    assert_eq!(objects, vec![outer, inner]);
+    near(volume(&d, outer), 0.027 - 0.001);
+    near(volume(&d, inner), 0.001);
+}
+
+#[test]
+fn the_new_solid_tools_refuse_in_words() {
+    let mut d = Document::new();
+    let a = block(&mut d, [0.0; 3], [0.1, 0.1, 0.1]);
+    let far = block(&mut d, [1.0, 0.0, 0.0], [0.1, 0.1, 0.1]);
+    for how in [PartsOp::Subtract, PartsOp::Intersect, PartsOp::Split] {
+        let e = refused(&mut d, combine(a, &[far], how));
+        assert!(
+            matches!(e, KernelError::Parts(PartsError::NoOverlap)),
+            "{how:?}: {e}"
+        );
+    }
+    let twin = block(&mut d, [0.0; 3], [0.1, 0.1, 0.1]);
+    let e = refused(&mut d, combine(a, &[twin], PartsOp::Split));
+    assert!(
+        matches!(e, KernelError::Parts(PartsError::SameSpace)),
+        "{e}"
+    );
+    let c = block(&mut d, [0.05, 0.0, 0.0], [0.1, 0.1, 0.1]);
+    let e = refused(&mut d, combine(a, &[twin, c], PartsOp::Split));
+    assert!(matches!(e, KernelError::Parts(PartsError::SplitTwo)), "{e}");
+}
+
+#[test]
+fn the_new_solid_tools_replay_to_the_same_model() {
+    let mut d = Document::new();
+    let a = block(&mut d, [0.0; 3], [0.2, 0.2, 0.2]);
+    let b = block(&mut d, [0.1, 0.1, 0.1], [0.2, 0.2, 0.2]);
+    ok(&mut d, combine(a, &[b], PartsOp::Split));
+    let c = block(&mut d, [0.05, 0.05, -0.1], [0.02, 0.02, 0.5]);
+    ok(&mut d, combine(a, &[c], PartsOp::Subtract));
+    let again = sawhorse_kernel::Model::replay(d.log()).unwrap();
+    assert_eq!(again.hash(), d.model().hash());
+}
+
+#[test]
+fn the_new_solid_tools_on_one_copy_of_a_component_leave_the_others_and_the_tree_whole() {
+    for how in [PartsOp::Subtract, PartsOp::Intersect, PartsOp::Split] {
+        let mut d = Document::new();
+        let leg = block(&mut d, [0.0; 3], [0.1, 0.1, 0.5]);
+        let (one, other) = component(&mut d, leg);
+        let tenon = block(&mut d, [0.03, 0.03, 0.3], [0.04, 0.04, 0.3]);
+        let out = ok(
+            &mut d,
+            Op::CombineParts {
+                target: Item::Node(one),
+                with: vec![Item::Object(tenon)],
+                how,
+            },
+        );
+        let OpOutcome::PartsCombined { unique, .. } = out else {
+            panic!("{how:?}: {out:?}");
+        };
+        assert!(unique, "{how:?}");
+        let m = d.model();
+        m.validate().unwrap_or_else(|e| panic!("{how:?}: {e}"));
+        let in_other: Vec<f64> = m
+            .objects()
+            .into_iter()
+            .filter(|(_, o)| o.membership().parent() == Some(other))
+            .map(|(_, o)| o.volume())
+            .collect();
+        assert_eq!(in_other.len(), 1, "{how:?}");
+        near(in_other[0], 0.1 * 0.1 * 0.5);
+        let tenon_left = m.object(tenon).is_some();
+        assert_eq!(
+            tenon_left,
+            how == PartsOp::Split,
+            "{how:?}: the cutter goes away unless it is split"
+        );
+        let again = sawhorse_kernel::Model::replay(d.log()).unwrap();
+        assert_eq!(again.hash(), d.model().hash(), "{how:?}");
+    }
+}

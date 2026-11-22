@@ -26,6 +26,12 @@ pub enum PartsOp {
     Add,
     /// `with` is taken out of `target` and stays where it is.
     Cut,
+    /// `with` is taken out of `target` and goes away (the Solid Tools' Subtract).
+    Subtract,
+    /// Only where `target` and `with` overlap is kept, in `target`; `with` goes away.
+    Intersect,
+    /// Two parts become three: each without the other, and the overlap as a new part.
+    Split,
 }
 
 /// A part the op will change: its solids, and the node they are in when it was named as a
@@ -140,7 +146,134 @@ impl Model {
         match how {
             PartsOp::Cut => self.cut_part(&kids, part, with),
             PartsOp::Add => self.add_parts(&kids, part, with),
+            PartsOp::Subtract => {
+                let gone = self.consumed(&kids, &part, with)?;
+                let out = self.cut_part(&kids, part, with)?;
+                // The cut may have made the target's component unique and split it into
+                // pieces, so the cutters come out of the tree as it is now.
+                let now = self.kids();
+                self.take_away(&now, gone);
+                Ok(out)
+            }
+            PartsOp::Intersect => self.intersect_parts(&kids, part, with),
+            PartsOp::Split => self.split_parts(&kids, part, with),
         }
+    }
+
+    /// The parts an op will use up: each must be editable, and none may be `part` itself.
+    fn consumed(&self, kids: &Kids, part: &Part, with: &[Item]) -> Result<Vec<Thing>, KernelError> {
+        let mut gone = Vec::new();
+        for &item in with {
+            let other = self.editable_part(kids, item)?;
+            if other.solids.iter().any(|k| part.solids.contains(k)) {
+                return Err(PartsError::SamePart.into());
+            }
+            let thing = other
+                .node
+                .map_or(Thing::Object(other.solids[0]), Thing::Node);
+            if !gone.contains(&thing) {
+                gone.push(thing);
+            }
+        }
+        Ok(gone)
+    }
+
+    /// Remove parts an op used up from the model.
+    fn take_away(&mut self, kids: &Kids, gone: Vec<Thing>) {
+        for t in gone {
+            let parent = self.membership(t).expect("resolved").parent;
+            self.remove_thing(kids, t);
+            self.mark(parent);
+        }
+    }
+
+    fn intersect_parts(
+        &mut self,
+        kids: &Kids,
+        part: Part,
+        with: &[Item],
+    ) -> Result<OpOutcome, KernelError> {
+        let [into] = part.solids[..] else {
+            return Err(PartsError::SeveralSolids.into());
+        };
+        let gone = self.consumed(kids, &part, with)?;
+        let mut now = self.objects[into].clone();
+        for &item in with {
+            for k in self.solids_of(kids, item)? {
+                let other = &self.objects[k];
+                if !boxes_meet(&now, other) {
+                    return Err(PartsError::NoOverlap.into());
+                }
+                now = now
+                    .combine(other, BoolOp::Intersection)
+                    .map_err(failed)?
+                    .ok_or(PartsError::NoOverlap)?;
+            }
+        }
+        let unique = self.unshare(&part);
+        // Making the component unique changed the tree: remove the others from it as it is now.
+        let current = self.kids();
+        self.take_away(&current, gone);
+        self.objects[into] = now;
+        self.touch(into);
+        let objects = self.sever(into).into_iter().map(to_public).collect();
+        Ok(OpOutcome::PartsCombined { objects, unique })
+    }
+
+    fn split_parts(
+        &mut self,
+        kids: &Kids,
+        part: Part,
+        with: &[Item],
+    ) -> Result<OpOutcome, KernelError> {
+        let [item] = with[..] else {
+            return Err(PartsError::SplitTwo.into());
+        };
+        let [a] = part.solids[..] else {
+            return Err(PartsError::SeveralSolids.into());
+        };
+        let other = self.editable_part(kids, item)?;
+        let [b] = other.solids[..] else {
+            return Err(PartsError::SeveralSolids.into());
+        };
+        if a == b {
+            return Err(PartsError::SamePart.into());
+        }
+        let (oa, ob) = (&self.objects[a], &self.objects[b]);
+        if !boxes_meet(oa, ob) {
+            return Err(PartsError::NoOverlap.into());
+        }
+        let Some(both) = oa.combine(ob, BoolOp::Intersection).map_err(failed)? else {
+            return Err(PartsError::NoOverlap.into());
+        };
+        let a_only = oa.combine(ob, BoolOp::Difference).map_err(failed)?;
+        let b_only = ob.combine(oa, BoolOp::Difference).map_err(failed)?;
+        // A part wholly inside the other is already the overlap: only the outer one changes.
+        let (new_a, new_b, extra) = match (a_only, b_only) {
+            (None, None) => return Err(PartsError::SameSpace.into()),
+            (None, Some(b_only)) => (None, Some(b_only), None),
+            (Some(a_only), None) => (Some(a_only), None, None),
+            (Some(a_only), Some(b_only)) => (Some(a_only), Some(b_only), Some(both)),
+        };
+        let unique = self.unshare(&part) | self.unshare(&other);
+        let mut objects = Vec::new();
+        for (k, o) in [(a, new_a), (b, new_b)] {
+            if let Some(o) = o {
+                self.objects[k] = o;
+                self.touch(k);
+                objects.extend(self.sever(k).into_iter().map(to_public));
+            } else {
+                objects.push(to_public(k));
+            }
+        }
+        if let Some(mut o) = extra {
+            // The overlap is a new part beside the first, under no name of its own.
+            o.name = None;
+            let k = self.insert_object(o);
+            self.touch(k);
+            objects.extend(self.sever(k).into_iter().map(to_public));
+        }
+        Ok(OpOutcome::PartsCombined { objects, unique })
     }
 
     fn cut_part(

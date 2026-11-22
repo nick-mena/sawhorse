@@ -265,3 +265,73 @@ pub fn draw_on_faces(
     *p = q;
     Ok(touched)
 }
+
+/// Loop Cut: draw the line where the plane through `origin` across `normal` meets each of
+/// the solid's faces, so the solid gains a ring of edges all the way around there. Faces on
+/// one plane are cut together (the stroke runs across them as one line); faces parallel to
+/// the cut, and stretches where an edge already runs along the line, are left alone.
+/// Returns how many planes of faces were cut. All or nothing, like [`draw_on_faces`].
+pub fn loop_cut(p: &mut Polys, origin: DVec3, normal: DVec3) -> Result<usize, FaceEditError> {
+    if !(in_bounds(origin.x) && in_bounds(origin.y) && in_bounds(origin.z)) {
+        return Err(FaceEditError::OutOfBounds);
+    }
+    if !normal.is_finite() {
+        return Err(FaceEditError::OutOfBounds);
+    }
+    let n = normal.normalize_or_zero();
+    if n == DVec3::ZERO {
+        return Err(FaceEditError::Degenerate);
+    }
+    let (mut lo, mut hi) = (DVec3::splat(f64::INFINITY), DVec3::splat(f64::NEG_INFINITY));
+    for f in &p.faces {
+        for &i in f.rings().flatten() {
+            lo = lo.min(p.points[i]);
+            hi = hi.max(p.points[i]);
+        }
+    }
+    if !lo.is_finite() {
+        return Err(FaceEditError::NothingToCut);
+    }
+    // Long enough to cross the whole solid from wherever it is centred.
+    let centre = 0.5 * (lo + hi);
+    let reach = (hi - lo).length() + 1.0;
+    let h_cut = n.dot(origin);
+    let mut q = p.clone();
+    let mut done: Vec<Plane> = Vec::new();
+    let mut cut = 0;
+    // Faces made by the cuts are appended, so the faces there at the start are all visited.
+    for fi in 0..p.faces.len() {
+        let Some(fp) = q.plane(fi) else { continue };
+        if done.iter().any(|d| {
+            d.normal.dot(fp.normal) >= 1.0 - 1e-9 && d.signed_distance(fp.origin).abs() <= PLANARITY
+        }) {
+            continue;
+        }
+        done.push(fp);
+        let dir = fp.normal.cross(n);
+        if dir.length() < 1e-9 {
+            continue; // parallel to the cut, or on it
+        }
+        // The point on both planes nearest the solid's centre, then a line through it.
+        let h_face = fp.normal.dot(fp.origin);
+        let on_both = (h_face * n.cross(dir) + h_cut * dir.cross(fp.normal)) / dir.length_squared();
+        let d = dir.normalize();
+        let mid = on_both + d * (centre - on_both).dot(d);
+        let ends = [mid - d * reach, mid + d * reach].map(|w| fp.to_world(fp.to_local(w)));
+        if ends.iter().any(|w| !w.is_finite()) {
+            return Err(FaceEditError::OutOfBounds);
+        }
+        match draw_on_faces(&mut q, fi, &ends, false) {
+            Ok(_) => cut += 1,
+            // The line misses every face on this plane, or runs only along their edges.
+            Err(FaceEditError::NotInside) => {}
+            Err(FaceEditError::DoesNotSplit) => return Err(FaceEditError::ThroughHole),
+            Err(e) => return Err(e),
+        }
+    }
+    if cut == 0 {
+        return Err(FaceEditError::NothingToCut);
+    }
+    *p = q;
+    Ok(cut)
+}

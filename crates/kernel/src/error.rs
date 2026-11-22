@@ -121,6 +121,18 @@ pub enum FaceEditError {
     /// thinner than that, say), so the solid would touch itself.
     #[error("that would put a corner or line within 0.01 mm of another face of the solid")]
     TooClose,
+    /// A loop cut that would draw no new edge: it misses the part, or there are edges all
+    /// the way around there already.
+    #[error(
+        "there is nothing to cut there: the cut misses the part, or there are edges all the way around there already"
+    )]
+    NothingToCut,
+    /// A loop cut whose line crosses a hole in a face (a through-mortise): the face would
+    /// need a cut from its edge to the hole's, which does not split it.
+    #[error(
+        "the cut passes through a hole in a face, which a loop cut cannot do yet: make the loop cut first, then cut the hole"
+    )]
+    ThroughHole,
 }
 
 /// Errors from moving, rotating, scaling, copying and arraying (lane 4). Refusals of bad
@@ -272,6 +284,10 @@ pub enum PartsError {
     NotTouching,
     #[error("the cutter covers the whole part, so cutting it would leave nothing")]
     RemovesEverything,
+    #[error("those parts fill the same space, so there is nothing to split")]
+    SameSpace,
+    #[error("split works on two parts: select one part, then click the other")]
+    SplitTwo,
     #[error("that could not be worked out cleanly, so nothing changed ({0})")]
     Failed(String),
 }

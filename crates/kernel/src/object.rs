@@ -755,6 +755,28 @@ impl Object {
         Ok(ids)
     }
 
+    /// Loop Cut: a ring of edges where the plane through `origin` across `normal` crosses
+    /// the solid (see [`crate::draw::loop_cut`]). Returns the persistent ids of the faces
+    /// the cut made, sorted.
+    pub fn loop_cut(&mut self, origin: DVec3, normal: DVec3) -> Result<Vec<u64>, FaceEditError> {
+        let mut p = self.brep.to_polys();
+        let before: BTreeSet<u64> = self.brep.persistent_face_ids().into_iter().collect();
+        crate::draw::loop_cut(&mut p, origin, normal)?;
+        let lineage = assign_face_ids(&mut p, &mut self.next_face_id);
+        self.brep = Brep::build(&p)?;
+        self.brep.debug_validate("loop_cut");
+        self.refuse_self_contact()?;
+        self.settle_paint(&lineage);
+        let mut made: Vec<u64> = self
+            .brep
+            .persistent_face_ids()
+            .into_iter()
+            .filter(|id| !before.contains(id))
+            .collect();
+        made.sort_unstable();
+        Ok(made)
+    }
+
     /// Imprint the closed loop `points` (strictly inside face `face`) as a coplanar
     /// sub-face; the face gains the twin hole. Returns the sub-face's persistent id (new).
     /// See [`crate::faceops::imprint`].

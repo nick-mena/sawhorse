@@ -128,6 +128,13 @@ pub enum Op {
         face: u64,
         path: Vec<[f64; 3]>,
     },
+    /// Loop Cut: a ring of edges all the way around solid `object`, where the plane through
+    /// `origin` across `normal` crosses it (see [`crate::draw::loop_cut`]).
+    LoopCut {
+        object: u64,
+        origin: [f64; 3],
+        normal: [f64; 3],
+    },
     /// Imprint the closed loop `points` (strictly inside face `face`) as a coplanar
     /// sub-face twinned with a new hole in the face.
     Imprint {
@@ -1972,6 +1979,21 @@ impl Model {
                 Ok(OpOutcome::FaceSplit {
                     faces: faces.to_vec(),
                 })
+            }
+            Op::LoopCut {
+                object,
+                origin,
+                normal,
+            } => {
+                let k = from_public::<ObjectId>(*object);
+                if !self.objects.contains_key(k) {
+                    return Err(FaceEditError::NoSuchObject(*object).into());
+                }
+                self.editable_object(k)?;
+                self.touch(k);
+                let faces = self.objects[k]
+                    .loop_cut(DVec3::from_array(*origin), DVec3::from_array(*normal))?;
+                Ok(OpOutcome::FaceSplit { faces })
             }
             Op::Imprint {
                 object,
