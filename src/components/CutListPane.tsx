@@ -7,6 +7,7 @@
 // stock of the row, or of every picked row at once. The Nesting button opens the Nesting
 // section under the list (lane 9: cutting diagrams; `NestingSection.tsx`).
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { usePlacedMenu } from "../lib/menuPlace";
 import type { CutList, CutRow, Grain, Rounding } from "../kernel/types";
 import { BOARD_FEET_NOTE, formatSteps, geometryNote, listStyle, materialText, nominalText, rowNotes, ROUNDINGS, scopeNote, sizeUnit, summary, UNCOUNTED_NOTES, type RoundingChoice } from "../cutlist/format";
 import { nameRuns, sizeChars, sizePieces } from "../cutlist/wrap";
@@ -228,6 +229,7 @@ export function CutListPane(p: CutListPaneProps) {
   /** Where a Shift-click range starts: the last row clicked without Shift. */
   const [anchor, setAnchor] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  usePlacedMenu(menuRef, () => (menu ? { kind: "point", x: menu.x, y: menu.y } : null));
   useEffect(() => {
     if (!menu) return;
     const close = (e: Event) => {

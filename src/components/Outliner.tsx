@@ -7,6 +7,7 @@
 // 12) are listed in their group or component; right-click activates, reverses, slices or
 // exports one.
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { usePlacedMenu } from "../lib/menuPlace";
 import type { DocState, Entity } from "../kernel/types";
 import { selectionLookup } from "../lib/entities";
 import { chain, graphOf } from "../lib/scope";
@@ -263,6 +264,7 @@ export function Outliner({ state, selection, onSelect, onAction, onRename }: Out
   const [renaming, setRenaming] = useState<string | null>(null);
   const [menu, setMenu] = useState<Menu | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  usePlacedMenu(menuRef, () => (menu ? { kind: "point", x: menu.x, y: menu.y } : null));
 
   useEffect(() => {
     if (!menu) return;
@@ -377,7 +379,7 @@ export function Outliner({ state, selection, onSelect, onAction, onRename }: Out
                 ) : (
                   <span
                     className="label"
-                    title="Double-click to rename"
+                    title={`${r.label}\nDouble-click to rename`}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
                       if (r.kind !== "mesh") setRenaming(r.key);
@@ -387,7 +389,7 @@ export function Outliner({ state, selection, onSelect, onAction, onRename }: Out
                   </span>
                 )}
                 {r.open ? <span className="k editing">editing</span> : null}
-                <span className="k">{r.hint}</span>
+                <span className="k" title={r.hint}>{r.hint}</span>
                 <span className="row-tools">
                   <button
                     type="button"

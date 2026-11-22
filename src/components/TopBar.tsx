@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState, type ReactElement } from "react";
+import { useEffect, useRef, useState, type ReactElement, type ReactNode } from "react";
 import { shortcutLabel } from "../lib/keys";
+import { usePlacedMenu } from "../lib/menuPlace";
 
 // "Plugins" (lane 11) sits after Tools: commands from enabled plugins, and managing them.
 const MENUS = ["File", "Edit", "View", "Draw", "Tools", "Plugins", "Window", "Help"];
@@ -39,6 +40,29 @@ export interface TopBarProps {
   docState?: string | null;
 }
 
+/**
+ * A drop-down or submenu, fixed to the window and kept inside it. Fixed rather than absolute so
+ * a parent that scrolls (a long menu, the viewport's menu row) cannot clip it.
+ */
+function DropMenu({ kind, label, children }: { kind: "below" | "side"; label: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  usePlacedMenu(ref, () => {
+    const host = ref.current?.parentElement;
+    if (!host) return null;
+    const box = host.getBoundingClientRect();
+    if (kind === "below") return { kind, box };
+    // A submenu sits beside the whole parent menu, not just its entry, so it clears the
+    // parent's scrollbar when that menu is capped and scrolls.
+    const parent = host.closest(".drop")?.getBoundingClientRect() ?? box;
+    return { kind, box: { top: box.top, bottom: box.bottom, left: parent.left, right: parent.right } };
+  });
+  return (
+    <div ref={ref} className={kind === "side" ? "drop sub" : "drop"} role="menu" aria-label={label}>
+      {children}
+    </div>
+  );
+}
+
 function Entry({ item: it, sub, setSub, close }: { item: MenuItem; sub: string | null; setSub: (s: string | null) => void; close: (byKeyboard: boolean) => void }) {
   if (it === "-") return <hr />;
   if ("items" in it) {
@@ -54,11 +78,11 @@ function Entry({ item: it, sub, setSub, close }: { item: MenuItem; sub: string |
           <kbd aria-hidden="true">▸</kbd>
         </button>
         {isOpen ? (
-          <div className="drop sub" role="menu" aria-label={it.label}>
+          <DropMenu kind="side" label={it.label}>
             {it.items.map((x, k) => (
               <Entry key={k} item={x} sub={null} setSub={() => {}} close={close} />
             ))}
-          </div>
+          </DropMenu>
         ) : null}
       </span>
     );
@@ -133,11 +157,11 @@ export function MenuBar({ names, menus, label, prefix }: { names: string[]; menu
               {m}
             </button>
             {items && open === m ? (
-              <div className="drop" role="menu" aria-label={m}>
+              <DropMenu kind="below" label={m}>
                 {items.map((it, i) => (
                   <Entry key={i} item={it} sub={sub} setSub={setSub} close={closeMenu} />
                 ))}
-              </div>
+              </DropMenu>
             ) : null}
           </span>
         );
@@ -162,7 +186,7 @@ export function TopBar({ credits, showCredits = true, creditsState, creditsTitle
       <div className="spacer"></div>
       {docName ? (
         <div className="doc-state" data-testid="doc-state" data-edited={docState === "Edited" || undefined}>
-          <b>{docName}</b>
+          <b title={docName}>{docName}</b>
           {docState ? <span>{docState}</span> : null}
         </div>
       ) : null}

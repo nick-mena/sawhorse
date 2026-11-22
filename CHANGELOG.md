@@ -4,6 +4,15 @@ All notable changes to Sawhorse are recorded here. The format follows [Keep a Ch
 
 ## [Unreleased]
 
+### Fixed (macOS fork, 2026-11-21)
+- Menus no longer run off the window. A drop-down taller than the window (Edit at 1024×700) scrolls instead of pushing the page down, a submenu moves up or to the other side to stay in view, and a right-click menu in the Outliner, Cut list or scene tabs opens up and to the left near the window's edge. Menus in the viewport's menu row are no longer clipped by that row.
+- The Attributes pane's Position and Size fields show long fractions such as ~ -14 13/16 in full. In a panel narrower than about 420px, the Position and Size labels sit above their x, y and z fields, which gives each field room.
+- On a window 820px tall or less, the tool rail tightens up so all 19 tools fit at 1024×700. Where they still do not fit, a shadow shows there is more to scroll to.
+- In the stacked layout (860px wide or less), the status line and its measurement box stay at the bottom of the window instead of falling below the viewport. The "Units: … Click to change." button no longer gets cut short.
+- Menus open above the import report, the demo banner, a name dialog and the CNC panel. The import report no longer covers the demo banner.
+- Long names in the Outliner and the Tags pane, the outliner's hints and the file name in the top bar show in full on hover.
+- The Styles pane's sliders no longer stick 2px out of the pane. On systems that show scrollbars, that 2px added a horizontal scrollbar.
+
 ### Added (macOS fork, 2026-11-16)
 - Joinery (ADR-0015, step 1). The Joint tool now makes named joints as well as free-form cuts: tap Alt to step through Cut With Selection, Mortise and Tenon, Dado, Rabbet and Half-Lap (also on the Tools menu). Select the board that goes in (the rail, the shelf), click the board that takes it (the leg, the side), and both are cut in one undo step. A rail drawn running into the leg is trimmed back to its shoulder.
 - Sizes start where a woodworker would: a tenon a third of the rail's thickness at the nearest chisel size, shoulders as thick as the tenon, 2/3 of the way into the leg; a dado a third of the side's thickness deep, a rabbet half. Type new sizes straight after the joint (`3/8, 2, 1-1/4` for a tenon; one depth for the others); a length as deep as the leg makes a through tenon. A dado clicked near one end of the side stops short of the far edge.

@@ -34,6 +34,15 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--accent);ou
 .tool:hover{background:var(--panel);color:var(--fg)}
 .tool[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
 .tool kbd{position:absolute;top:1px;right:3px;font:.5625rem var(--body);line-height:1}
+/* Nineteen tools need about 700px. On a shorter window they tighten up, and whatever still does
+   not fit scrolls, with a shadow at the end that has more (macOS hides the scrollbar itself). */
+@media (max-height:820px) and (min-width:861px){
+  .tool{height:27px}
+  .rail .grp{padding:2px 0}
+}
+@media (min-width:861px){
+  .rail{background:linear-gradient(var(--rail) 30%,transparent) top/100% 18px no-repeat local,linear-gradient(transparent,var(--rail) 70%) bottom/100% 18px no-repeat local,radial-gradient(farthest-side at 50% 0,#0003,transparent) top/100% 8px no-repeat scroll,radial-gradient(farthest-side at 50% 100%,#0003,transparent) bottom/100% 8px no-repeat scroll,var(--rail)}
+}
 
 .vp{grid-area:vp;position:relative;background:var(--vp);min-width:0;min-height:300px;overflow:hidden}
 .vp canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -101,7 +110,9 @@ textarea{width:100%;min-height:54px;resize:vertical;border:1px solid var(--line)
 
 @media (max-width:860px){
   .app{min-height:0;height:auto;grid-template-columns:1fr;grid-template-rows:auto auto 440px auto auto;grid-template-areas:"top" "rail" "vp" "vcb" "side"}
-  .vcb{height:auto;flex-wrap:wrap}
+  /* Stacked, the page scrolls; the status line and its measurement box stay at the bottom of
+     the window rather than below the 440px viewport, out of sight. */
+  .vcb{height:auto;flex-wrap:wrap;position:sticky;bottom:0;z-index:15}
   .rail{flex-direction:row;border-right:0;border-bottom:1px solid var(--line);padding:4px 8px;gap:4px}
   .rail .grp{flex-direction:row;width:auto;border-bottom:0;border-right:1px solid var(--line);padding:0 6px 0 0}
   .side{border-left:0;border-top:1px solid var(--line);max-height:520px;width:auto}
@@ -146,14 +157,14 @@ textarea{width:100%;min-height:54px;resize:vertical;border:1px solid var(--line)
 .vp .selbox{position:absolute;pointer-events:none;border:1px solid var(--sel);background:color-mix(in srgb,var(--sel) 8%,transparent)}
 .vp .selbox.crossing{border-style:dashed;background:color-mix(in srgb,var(--sel) 4%,transparent)}
 .menu{position:relative}
-.menu .drop{position:absolute;top:100%;margin-top:4px;min-width:220px;z-index:20;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px;box-shadow:0 6px 18px #0002;display:flex;flex-direction:column}
+.menu .drop{position:fixed;overflow-y:auto;overscroll-behavior:contain;min-width:220px;z-index:80;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px;box-shadow:0 6px 18px #0002;display:flex;flex-direction:column}
 .menu .drop button{display:flex;justify-content:space-between;gap:16px;text-align:left;padding:5px 8px;border-radius:4px;color:var(--fg)}
 .menu .drop button:hover{background:var(--rail)}
 .menu .drop kbd{font:var(--type-micro) var(--body);color:var(--muted)}
 .menu .drop hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
 .menu .drop .subwrap{position:relative;display:flex;flex-direction:column}
 .menu .drop .subwrap>button{width:100%}
-.menu .drop.sub{top:-5px;left:100%;margin:0 0 0 2px;min-width:250px}
+.menu .drop.sub{min-width:250px}
 .menu .drop button:disabled{color:var(--muted);cursor:default;background:none}
 .menu button[aria-expanded="true"]{background:var(--rail);color:var(--fg)}
 /* Viewport overlays never swallow pointer events meant for the canvas (window selection can start under them). */
@@ -161,6 +172,8 @@ textarea{width:100%;min-height:54px;resize:vertical;border:1px solid var(--line)
 
 /* ---- Lane 4 additions: status-line actions ("Restore unsaved work?") ---- */
 .vcb .hint .hint-action{flex:0 1 auto;min-width:0;max-width:max-content;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:1px 8px;border:1px solid var(--accent);border-radius:4px;color:var(--accent);background:var(--bg);font:var(--type-detail) var(--body)}
+/* The units sentence is the click; it stays whole and the status words wrap beside it. */
+.vcb .hint .hint-units{flex-shrink:0}
 .vcb .hint .hint-action:hover{background:var(--accent);color:var(--accent-ink)}
 /* Scale grips: small squares on the selection's bounding box; the one under the cursor fills. */
 .vp .vlabel.grip{width:9px;height:9px;padding:0;border-radius:2px;border:1.5px solid var(--sel);background:var(--panel);transform:translate(-50%,-50%)}
@@ -169,7 +182,8 @@ textarea{width:100%;min-height:54px;resize:vertical;border:1px solid var(--line)
 /* Files (lane 6): drop target, import report. */
 .app.dropping .vp{outline:2px dashed var(--sel);outline-offset:-6px}
 .drop-hint{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:40;pointer-events:none;padding:14px 18px;border-radius:8px;background:var(--panel);border:1px solid var(--line);box-shadow:0 10px 30px #0003;font-size:var(--type-body);color:var(--fg);max-width:420px;text-align:center}
-.import-report{position:fixed;left:68px;bottom:64px;z-index:30;width:min(440px,calc(100vw - 32px));max-height:40vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #0002;font-size:var(--type-detail);color:var(--fg)}
+/* Above the demo banner's band (bottom 52px, about 34px tall), which it used to cover. */
+.import-report{position:fixed;left:68px;bottom:96px;z-index:30;width:min(440px,calc(100vw - 32px));max-height:40vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 24px #0002;font-size:var(--type-detail);color:var(--fg)}
 .import-report header{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line)}
 .import-report header button{border:0;background:none;color:var(--muted);font-size:16px;line-height:1;cursor:pointer;padding:0 2px}
 .import-report ul{margin:0;padding:6px 10px 8px 26px}
@@ -228,7 +242,9 @@ button.chip:hover{border-color:var(--accent)}
 .pg{flex:0 0 auto;vertical-align:-2px}
 .btn .pg{margin-right:2px}
 .pane .placeholder{font-size:var(--type-body);line-height:1.45;padding:10px;border:1px dashed var(--line);border-radius:6px;color:var(--fg);background:var(--bg)}
-.ctxmenu{position:fixed;z-index:40;min-width:200px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px;box-shadow:0 6px 18px #0002;display:flex;flex-direction:column;font-size:var(--type-body)}
+/* Menus are the topmost thing that comes and goes: above the import report and demo banner (30),
+   a name dialog (45) and the CNC panel (70), any of which a menu can be opened over. */
+.ctxmenu{position:fixed;z-index:80;overflow-y:auto;overscroll-behavior:contain;min-width:200px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px;box-shadow:0 6px 18px #0002;display:flex;flex-direction:column;font-size:var(--type-body)}
 .ctxmenu button{display:flex;justify-content:space-between;gap:16px;text-align:left;padding:5px 8px;border-radius:4px;color:var(--fg);background:none;border:0}
 .ctxmenu button:hover:not(:disabled){background:var(--rail)}
 .ctxmenu button:disabled{color:var(--muted);cursor:default}
@@ -463,7 +479,7 @@ button.chip:hover{border-color:var(--accent)}
 .shadows select{padding:2px 5px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
 .slider{display:flex;flex-direction:column;gap:1px;font-size:var(--type-detail);color:var(--muted)}
 .slider b{color:var(--fg);font-weight:500;font-family:var(--mono)}
-.slider input{width:100%}
+.slider input{width:100%;margin-inline:0}
 .vp .vlabel.stamp{font:500 var(--type-micro)/1 var(--mono);padding:2px 4px;border:1px solid var(--accent);border-radius:1px;background:var(--panel);color:var(--accent)}
 .vp .vlabel.uvlabel{font:var(--type-micro) var(--mono);background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:1px 4px;transform:translate(8px,-50%)}
 /* ---- Lane 11: plugins (the Plugins pane, plugin panels, the plugin dialogs, the rail's plugin group) ---- */
@@ -671,3 +687,11 @@ button.chip:hover{border-color:var(--accent)}
 .attr-mixed{color:var(--muted);font-size:var(--type-detail)}
 .attr-joints{align-items:start}
 .attr-joints>ul{grid-column:span 3;margin:0;padding:0;list-style:none;display:grid;gap:4px;line-height:1.35}
+/* A fraction with its "~" (~ -14 13/16) needs about 80px; beside a label column, three axes
+   in a 360px panel get 56px and cut it off. Below that width the label goes above its axes. */
+.attrs{container-type:inline-size}
+@container (max-width:420px){
+  .attr-row.attr-xyz{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:3px}
+  .attr-row.attr-xyz>span:first-child{grid-column:1/-1}
+}
+.attr-field.num{padding-inline:5px}

@@ -101,7 +101,7 @@ export function TagsPane({ state, canTag, onCreate, onVisible, onColor, onRename
                   }}
                 />
               ) : (
-                <span className="label" title="Double-click to rename" onDoubleClick={() => setRenaming(name)}>
+                <span className="label" title={`${name}\nDouble-click to rename`} onDoubleClick={() => setRenaming(name)}>
                   {name}
                 </span>
               )}

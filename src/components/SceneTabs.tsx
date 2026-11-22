@@ -3,6 +3,7 @@
 // saves the current view as a new scene; right-click a tab to update it to the current
 // view, rename it or delete it; double-click to rename.
 import { useEffect, useRef, useState } from "react";
+import { usePlacedMenu } from "../lib/menuPlace";
 import type { SceneDef } from "../kernel/types";
 import { PanelGlyph } from "./glyphs";
 
@@ -23,6 +24,7 @@ export function SceneTabs({ scenes, active, onGo, onAdd, onUpdate, onRename, onD
   const [menu, setMenu] = useState<{ name: string; x: number; y: number } | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
+  usePlacedMenu(ref, () => (menu ? { kind: "point", x: menu.x, y: menu.y } : null));
   useEffect(() => {
     if (!menu) return;
     const close = (e: Event) => {

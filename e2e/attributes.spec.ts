@@ -81,3 +81,25 @@ test("the viewport bar switches what the view draws, and the panel buttons put t
   await page.getByRole("menuitem", { name: "Hide Side Panel" }).click();
   await expect(side).toBeHidden();
 });
+
+test("long fractions read in full in the Position and Size fields", async ({ page }) => {
+  await board(page);
+  const pane = page.getByTestId("attributes");
+  // Off the 1/16 grid, so each shows its "~": the widest values the default units produce.
+  const set = async (label: string, v: string) => {
+    await pane.getByLabel(label).fill(v);
+    await pane.getByLabel(label).press("Enter");
+  };
+  await set("Size x", "14.8");
+  await set("Size y", "5.55");
+  await set("Size z", "2.33");
+  await set("Position x", "-14.8");
+  await set("Position y", "-5.2");
+  await pane.getByLabel("Position y").press("Escape");
+  await expect(pane.getByLabel("Size x")).toHaveValue(/^~ 14 13\/16/);
+  await expect(pane.getByLabel("Position x")).toHaveValue(/^~ -14 13\/16/);
+  for (const label of ["Position x", "Position y", "Position z", "Size x", "Size y", "Size z"]) {
+    const clipped = await pane.getByLabel(label).evaluate((el) => el.scrollWidth > el.clientWidth);
+    expect(clipped, `${label} cuts off its value`).toBe(false);
+  }
+});

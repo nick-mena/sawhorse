@@ -119,7 +119,7 @@ export function AttributesPane({ state, selection, units, apply, onError }: Attr
         <span>Name</span>
         {a.items.length === 1 ? <Field value={a.name ?? ""} label="Name" placeholder={a.title} onCommit={setName} /> : <span className="attr-mixed">{a.title}: names are their own</span>}
       </div>
-      <div className="attr-row">
+      <div className="attr-row attr-xyz">
         <span>Position</span>
         {AXES.map(({ k, label, title }) => (
           <label key={k} className={`attr-axis ax-${label}`} title={`${title}: where its lowest corner is`}>
@@ -128,7 +128,7 @@ export function AttributesPane({ state, selection, units, apply, onError }: Attr
           </label>
         ))}
       </div>
-      <div className="attr-row">
+      <div className="attr-row attr-xyz">
         <span>Size</span>
         {AXES.map(({ k, label, title }) => (
           <label key={k} className={`attr-axis ax-${label}`} title={`${title}: typed, it scales from the lowest corner`}>
